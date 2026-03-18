@@ -15,15 +15,25 @@ function ensureFile() {
 export default {
   data: new SlashCommandBuilder()
     .setName("coach-edit-price")
-    .setDescription("Edit a coach's price.")
+    .setDescription("Edit a coach's pricing.")
     .addUserOption(option =>
       option.setName("coach")
         .setDescription("The coach to edit")
         .setRequired(true)
     )
     .addNumberOption(option =>
-      option.setName("price")
-        .setDescription("New price")
+      option.setName("price-one-session")
+        .setDescription("Price for 1 session")
+        .setRequired(true)
+    )
+    .addNumberOption(option =>
+      option.setName("price-three-sessions")
+        .setDescription("Price for 3 sessions")
+        .setRequired(true)
+    )
+    .addNumberOption(option =>
+      option.setName("price-five-sessions")
+        .setDescription("Price for 5 sessions")
         .setRequired(true)
     ),
 
@@ -31,7 +41,9 @@ export default {
     try {
       ensureFile();
       const coachUser = interaction.options.getUser("coach");
-      const newPrice = interaction.options.getNumber("price");
+      const priceOne = interaction.options.getNumber("price-one-session");
+      const priceThree = interaction.options.getNumber("price-three-sessions");
+      const priceFive = interaction.options.getNumber("price-five-sessions");
 
       const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
 
@@ -42,19 +54,27 @@ export default {
         });
       }
 
-      data[coachUser.id].price = newPrice;
+      data[coachUser.id].pricing = {
+        oneSession: priceOne,
+        threeSessions: priceThree,
+        fiveSessions: priceFive
+      };
       fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 
       const embed = new EmbedBuilder()
-        .setTitle("Coach Price Updated")
-        .setDescription(`Price updated for **${coachUser.username}**`)
-        .addFields({ name: "New Price", value: `$${newPrice}` })
+        .setTitle("Coach Pricing Updated")
+        .setDescription(`Pricing updated for **${coachUser.username}**`)
+        .addFields(
+          { name: "1 Session", value: `$${priceOne}`, inline: true },
+          { name: "3 Sessions", value: `$${priceThree}`, inline: true },
+          { name: "5 Sessions", value: `$${priceFive}`, inline: true }
+        )
         .setColor("Aqua");
 
       return interaction.reply({ embeds: [embed] });
     } catch (error) {
       console.error(error);
-      await interaction.reply("❌ Error updating price.");
+      await interaction.reply("❌ Error updating pricing.");
     }
   }
 };
