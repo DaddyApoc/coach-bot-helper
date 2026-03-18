@@ -7,6 +7,15 @@ import fs from "fs";
 const bookingsPath = "/data/bookings.json";
 const coachesPath = "/data/coaches.json";
 
+function ensureFiles() {
+  if (!fs.existsSync(coachesPath)) {
+    fs.writeFileSync(coachesPath, JSON.stringify({}));
+  }
+  if (!fs.existsSync(bookingsPath)) {
+    fs.writeFileSync(bookingsPath, JSON.stringify([]));
+  }
+}
+
 export default {
   data: new SlashCommandBuilder()
     .setName("book-session")
@@ -28,98 +37,91 @@ export default {
     ),
 
   async execute(interaction) {
-    const coachUser = interaction.options.getUser("coach");
-    const studentUser = interaction.user;
-    const time = interaction.options.getString("time");
-    const notes = interaction.options.getString("notes") || "None";
-
-    // Validate time format (ISO recommended)
-    const parsedTime = Date.parse(time);
-    if (isNaN(parsedTime)) {
-      return interaction.reply({
-        content: "❌ Invalid time format. Use an ISO time like `2025-03-18T17:00:00Z`.",
-        ephemeral: true
-      });
-    }
-
-    // Load coaches
-    let coaches = [];
-    if (fs.existsSync(coachesPath)) {
-      coaches = JSON.parse(fs.readFileSync(coachesPath, "utf8"));
-    }
-
-    const coach = coaches.find(c => c.id === coachUser.id);
-
-    if (!coach) {
-      return interaction.reply({
-        content: "❌ That coach is not registered.",
-        ephemeral: true
-      });
-    }
-
-    // Load bookings
-    let bookings = [];
-    if (fs.existsSync(bookingsPath)) {
-      bookings = JSON.parse(fs.readFileSync(bookingsPath, "utf8"));
-    }
-
-    // Prevent double booking at same time
-    const conflict = bookings.find(b =>
-      b.coachId === coachUser.id &&
-      b.time === time &&
-      (b.status === "pending" || b.status === "accepted")
-    );
-
-    if (conflict) {
-      return interaction.reply({
-        content: "❌ This coach already has a session booked at that time.",
-        ephemeral: true
-      });
-    }
-
-    const booking = {
-      id: Date.now().toString(),
-      coachId: coachUser.id,
-      coachName: coachUser.username,
-      studentId: studentUser.id,
-      studentName: studentUser.username,
-      time,
-      notes,
-      status: "pending",
-      reminderSent: false,
-      created: new Date().toISOString()
-    };
-
-    bookings.push(booking);
-    fs.writeFileSync(bookingsPath, JSON.stringify(bookings, null, 2));
-
-    // DM the coach
     try {
-      const dmEmbed = new EmbedBuilder()
-        .setTitle("📬 New Coaching Session Request")
-        .setColor("Blue")
+      ensureFiles();
+      const coachUser = interaction.options.getUser("coach");
+      const studentUser = interaction.user;
+      const time = interaction.options.getString("time");
+      const notes = interaction.options.getString("notes") || "None";
+
+      const parsedTime = Date.parse(time);
+      if (isNaN(parsedTime)) {
+        return interaction.reply({
+          content: "❌ Invalid time format. Use an ISO time like `2025-03-18T17:00:00Z`.",
+          ephemeral: true
+        });
+      }
+
+      const coaches = JSON.parse(fs.readFileSync(coachesPath, "utf8"));
+
+      if (!coaches[coachUser.id]) {
+        return interaction.reply({
+          content: "❌ That coach is not registered.",
+          ephemeral: true
+        });
+      }
+
+      let bookings = JSON.parse(fs.readFileSync(bookingsPath, "utf8"));
+
+      const conflict = bookings.find(b =>
+        b.coachId === coachUser.id &&
+        b.time === time &&
+        (b.status === "pending" || b.status === "accepted")
+      );
+
+      if (conflict) {
+        return interaction.reply({
+          content: "❌ This coach already has a session booked at that time.",
+          ephemeral: true
+        });
+      }
+
+      const booking = {
+        id: Date.now().toString(),
+        coachId: coachUser.id,
+        coachName: coachUser.username,
+        studentId: studentUser.id,
+        studentName: studentUser.username,
+        time,
+        notes,
+        status: "pending",
+        reminderSent: false,
+        created: new Date().toISOString()
+      };
+
+      bookings.push(booking);
+      fs.writeFileSync(bookingsPath, JSON.stringify(bookings, null, 2));
+
+      try {
+        const dmEmbed = new EmbedBuilder()
+          .setTitle("📬 New Coaching Session Request")
+          .setColor("Blue")
+          .addFields(
+            { name: "Student", value: studentUser.username },
+            { name: "Time", value: time },
+            { name: "Notes", value: notes },
+            { name: "Booking ID", value: booking.id }
+          );
+
+        await coachUser.send({ embeds: [dmEmbed] });
+      } catch (err) {
+        console.log("DM failed:", err);
+      }
+
+      const embed = new EmbedBuilder()
+        .setTitle("✅ Session Request Sent")
+        .setColor("Green")
+        .setDescription(`Your session request has been sent to **${coachUser.username}**.`)
         .addFields(
-          { name: "Student", value: studentUser.username },
           { name: "Time", value: time },
           { name: "Notes", value: notes },
           { name: "Booking ID", value: booking.id }
         );
 
-      await coachUser.send({ embeds: [dmEmbed] });
-    } catch (err) {
-      console.log("DM failed:", err);
+      return interaction.reply({ embeds: [embed] });
+    } catch (error) {
+      console.error(error);
+      await interaction.reply("❌ Error booking session.");
     }
-
-    const embed = new EmbedBuilder()
-      .setTitle("✅ Session Request Sent")
-      .setColor("Green")
-      .setDescription(`Your session request has been sent to **${coachUser.username}**.`)
-      .addFields(
-        { name: "Time", value: time },
-        { name: "Notes", value: notes },
-        { name: "Booking ID", value: booking.id }
-      );
-
-    return interaction.reply({ embeds: [embed] });
   }
 };
