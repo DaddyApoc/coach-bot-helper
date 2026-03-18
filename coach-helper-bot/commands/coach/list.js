@@ -1,10 +1,5 @@
 import { SlashCommandBuilder } from "discord.js";
 import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 export default {
   data: new SlashCommandBuilder()
@@ -12,7 +7,12 @@ export default {
     .setDescription("List all registered coaches"),
 
   async execute(interaction) {
-    const filePath = path.join(__dirname, "..", "..", "coaches.json");
+    const filePath = "/data/coaches.json";
+    
+    if (!fs.existsSync(filePath)) {
+      fs.writeFileSync(filePath, JSON.stringify({}));
+    }
+    
     const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
 
     const entries = Object.entries(data);
