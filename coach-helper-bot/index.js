@@ -183,3 +183,47 @@ client.on("interactionCreate", async (interaction) => {
   }
 });
 postNewCoach(client, temp);
+
+import { postNewCoach } from "./utils/communityWall.js";
+// top of file
+
+// inside interaction.isButton() handler:
+if (id === "coachsetup_finish") {
+  const coachId = interaction.user.id;
+  const temp = loadTempProfile(coachId);
+
+  // ensure verification flags exist
+  if (typeof temp.verified === "undefined") temp.verified = false;
+  if (typeof temp.denied === "undefined") temp.denied = false;
+
+  let coaches = [];
+  if (fs.existsSync(coachesPath)) {
+    coaches = JSON.parse(fs.readFileSync(coachesPath, "utf8"));
+  }
+
+  const existing = coaches.find(c => c.id === coachId);
+  if (existing) {
+    Object.assign(existing, temp);
+  } else {
+    coaches.push(temp);
+  }
+
+  fs.writeFileSync(coachesPath, JSON.stringify(coaches, null, 2));
+  deleteTempProfile(coachId);
+
+  // DO NOT post to wall yet – only verified coaches go public
+  // postNewCoach(client, temp);  // remove or keep commented
+
+  // DM coach: pending approval
+  try {
+    await interaction.user.send(
+      "📝 Your coach profile has been saved and is now **pending admin approval**.\n" +
+      "You’ll be notified once you’re verified as one of **The Generals**."
+    );
+  } catch {}
+
+  return interaction.reply({
+    content: "✅ Your coach profile has been saved and is pending admin approval.",
+    ephemeral: true
+  });
+}
