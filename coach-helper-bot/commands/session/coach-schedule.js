@@ -6,36 +6,47 @@ import fs from "fs";
 
 const bookingsPath = "/data/bookings.json";
 
+function ensureFile() {
+  if (!fs.existsSync(bookingsPath)) {
+    fs.writeFileSync(bookingsPath, JSON.stringify([]));
+  }
+}
+
 export default {
   data: new SlashCommandBuilder()
     .setName("coach-schedule")
-    .setDescription("View all your coaching bookings."),
+    .setDescription("View your upcoming coaching sessions."),
 
   async execute(interaction) {
-    const coachId = interaction.user.id;
+    try {
+      ensureFile();
+      const coachId = interaction.user.id;
 
-    let bookings = JSON.parse(fs.readFileSync(bookingsPath, "utf8"));
+      let bookings = JSON.parse(fs.readFileSync(bookingsPath, "utf8"));
+      const coachBookings = bookings.filter(b =>
+        b.coachId === coachId && (b.status === "pending" || b.status === "accepted")
+      );
 
-    const mine = bookings.filter(b => b.coachId === coachId);
+      if (coachBookings.length === 0) {
+        return interaction.reply({
+          content: "📅 You have no upcoming sessions.",
+          ephemeral: true
+        });
+      }
 
-    if (mine.length === 0) {
-      return interaction.reply({
-        content: "📭 You have no bookings.",
-        ephemeral: true
-      });
+      const embed = new EmbedBuilder()
+        .setTitle("📅 Your Coaching Schedule")
+        .setColor("Blue")
+        .setDescription(
+          coachBookings
+            .map(b => `**${b.studentName}** — ${b.time} (${b.status})`)
+            .join("\n")
+        );
+
+      return interaction.reply({ embeds: [embed] });
+    } catch (error) {
+      console.error(error);
+      await interaction.reply("❌ Error retrieving schedule.");
     }
-
-    const embed = new EmbedBuilder()
-      .setTitle("📅 Your Coaching Schedule")
-      .setColor("Purple");
-
-    mine.forEach(b => {
-      embed.addFields({
-        name: `${b.time} — ${b.studentName}`,
-        value: `Status: **${b.status}**\nNotes: ${b.notes}`
-      });
-    });
-
-    return interaction.reply({ embeds: [embed], ephemeral: true });
   }
 };
