@@ -77,3 +77,10 @@ export default {
     });
   }
 };
+
+if (coach.suspended) {
+  return interaction.reply({
+    content: "⛔ This coach is suspended and cannot be booked or viewed.",
+    ephemeral: true
+  });
+}
