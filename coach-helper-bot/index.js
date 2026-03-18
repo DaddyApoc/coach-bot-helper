@@ -1,53 +1,184 @@
-import "dotenv/config";
-import { Client, Collection, GatewayIntentBits, Events } from "discord.js";
+import { Client, GatewayIntentBits, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
 import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
+import { loadTempProfile, saveTempProfile, deleteTempProfile } from "./utils/coachSetupStorage.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const coachesPath = "data/coaches.json";
 
-const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.DirectMessages]
-});
+// ... your existing client/login code
 
-client.commands = new Collection();
+client.on("interactionCreate", async (interaction) => {
+  if (interaction.isButton()) {
+    const id = interaction.customId;
+    const coachId = interaction.user.id;
 
-// Load commands
-const foldersPath = path.join(__dirname, "commands");
-const commandFolders = fs.readdirSync(foldersPath);
+    // PAGE NAVIGATION
+    if (id === "coachsetup_page2") {
+      const embed = new EmbedBuilder()
+        .setTitle("🏗 Coach Profile Setup — Page 2/3")
+        .setDescription("Media & credentials.")
+        .setColor("Blue");
 
-for (const folder of commandFolders) {
-  const commandsPath = path.join(foldersPath, folder);
-  const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith(".js"));
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId("coachsetup_clips").setLabel("Highlight Clips").setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId("coachsetup_certs").setLabel("Certifications").setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId("coachsetup_achievements").setLabel("Achievements").setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId("coachsetup_socials").setLabel("Social Links").setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId("coachsetup_banner").setLabel("Profile Banner").setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId("coachsetup_page3").setLabel("Next ▶").setStyle(ButtonStyle.Success)
+      );
 
-  for (const file of commandFiles) {
-    const filePath = path.join(commandsPath, file);
-    const command = (await import(`file://${filePath}`)).default;
-    
-    // Only register commands that have a data property
-    if (command.data) {
-      client.commands.set(command.data.name, command);
+      return interaction.update({ embeds: [embed], components: [row] });
+    }
+
+    if (id === "coachsetup_page3") {
+      const embed = new EmbedBuilder()
+        .setTitle("🏗 Coach Profile Setup — Page 3/3")
+        .setDescription("Pricing, availability, and finish.")
+        .setColor("Blue");
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId("coachsetup_pricing").setLabel("Pricing Tiers").setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId("coachsetup_availability").setLabel("Availability").setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId("coachsetup_preview").setLabel("Preview Profile").setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId("coachsetup_finish").setLabel("Finish ✅").setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId("coachsetup_page1").setLabel("◀ Back").setStyle(ButtonStyle.Secondary)
+      );
+
+      return interaction.update({ embeds: [embed], components: [row] });
+    }
+
+    if (id === "coachsetup_page1") {
+      const embed = new EmbedBuilder()
+        .setTitle("🏗 Coach Profile Setup — Page 1/3")
+        .setDescription("Core profile info.")
+        .setColor("Blue");
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId("coachsetup_about").setLabel("About Me").setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId("coachsetup_specialties").setLabel("Specialties").setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId("coachsetup_weapons").setLabel("Weapons").setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId("coachsetup_experience").setLabel("Experience").setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId("coachsetup_languages").setLabel("Languages").setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId("coachsetup_page2").setLabel("Next ▶").setStyle(ButtonStyle.Success)
+      );
+
+      return interaction.update({ embeds: [embed], components: [row] });
+    }
+
+    // ABOUT ME multi-step (simplified into one modal with multiple fields)
+    if (id === "coachsetup_about") {
+      const modal = new ModalBuilder()
+        .setCustomId("coachsetup_about_modal")
+        .setTitle("About Me");
+
+      const bio = new TextInputBuilder()
+        .setCustomId("about_bio")
+        .setLabel("Short bio")
+        .setStyle(TextInputStyle.Paragraph)
+        .setRequired(true);
+
+      const philosophy = new TextInputBuilder()
+        .setCustomId("about_philosophy")
+        .setLabel("Coaching philosophy")
+        .setStyle(TextInputStyle.Paragraph)
+        .setRequired(false);
+
+      const expect = new TextInputBuilder()
+        .setCustomId("about_expect")
+        .setLabel("What students can expect")
+        .setStyle(TextInputStyle.Paragraph)
+        .setRequired(false);
+
+      const background = new TextInputBuilder()
+        .setCustomId("about_background")
+        .setLabel("Background / experience")
+        .setStyle(TextInputStyle.Paragraph)
+        .setRequired(false);
+
+      const extra = new TextInputBuilder()
+        .setCustomId("about_extra")
+        .setLabel("Anything else?")
+        .setStyle(TextInputStyle.Paragraph)
+        .setRequired(false);
+
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(bio),
+        new ActionRowBuilder().addComponents(philosophy),
+        new ActionRowBuilder().addComponents(expect),
+        new ActionRowBuilder().addComponents(background),
+        new ActionRowBuilder().addComponents(extra)
+      );
+
+      return interaction.showModal(modal);
+    }
+
+    // You can add similar button→modal flows for specialties, weapons, etc.
+
+    if (id === "coachsetup_preview") {
+      const temp = loadTempProfile(coachId);
+
+      const embed = new EmbedBuilder()
+        .setTitle(`👀 Preview — ${temp.username || "Coach"}`)
+        .setColor("Gold")
+        .setDescription(temp.about || "No About Me set yet.")
+        .addFields(
+          { name: "Specialties", value: (temp.specialties || []).join(", ") || "None", inline: true },
+          { name: "Weapons", value: (temp.weapons || []).join(", ") || "None", inline: true },
+          { name: "Experience", value: temp.experience || "None", inline: false }
+        );
+
+      return interaction.reply({ embeds: [embed], ephemeral: true });
+    }
+
+    if (id === "coachsetup_finish") {
+      const temp = loadTempProfile(coachId);
+
+      let coaches = [];
+      if (fs.existsSync(coachesPath)) {
+        coaches = JSON.parse(fs.readFileSync(coachesPath, "utf8"));
+      }
+
+      const existing = coaches.find(c => c.id === coachId);
+      if (existing) {
+        Object.assign(existing, temp);
+      } else {
+        coaches.push(temp);
+      }
+
+      fs.writeFileSync(coachesPath, JSON.stringify(coaches, null, 2));
+      deleteTempProfile(coachId);
+
+      return interaction.reply({
+        content: "✅ Your coach profile has been saved.",
+        ephemeral: true
+      });
     }
   }
-}
 
-client.once(Events.ClientReady, c => {
-  console.log(`✅ Logged in as ${c.user.tag} — Coach helper.exe is online.`);
-});
+  if (interaction.isModalSubmit()) {
+    const id = interaction.customId;
+    const coachId = interaction.user.id;
+    let temp = loadTempProfile(coachId);
 
-client.on(Events.InteractionCreate, async interaction => {
-  if (!interaction.isChatInputCommand()) return;
+    if (id === "coachsetup_about_modal") {
+      const bio = interaction.fields.getTextInputValue("about_bio");
+      const philosophy = interaction.fields.getTextInputValue("about_philosophy") || "";
+      const expect = interaction.fields.getTextInputValue("about_expect") || "";
+      const background = interaction.fields.getTextInputValue("about_background") || "";
+      const extra = interaction.fields.getTextInputValue("about_extra") || "";
 
-  const command = client.commands.get(interaction.commandName);
-  if (!command) return;
+      temp.about =
+        `**About Me**\n${bio}\n\n` +
+        (philosophy ? `**Coaching Philosophy**\n${philosophy}\n\n` : "") +
+        (expect ? `**What Students Can Expect**\n${expect}\n\n` : "") +
+        (background ? `**Background**\n${background}\n\n` : "") +
+        (extra ? `**Additional Notes**\n${extra}` : "");
 
-  try {
-    await command.execute(interaction);
-  } catch (error) {
-    console.error(error);
-    await interaction.reply({ content: "There was an error executing this command.", ephemeral: true });
+      saveTempProfile(coachId, temp);
+
+      return interaction.reply({ content: "✅ About Me updated.", ephemeral: true });
+    }
+
+    // You can add more modal handlers here for specialties, weapons, etc.
   }
 });
-
-client.login(process.env.DISCORD_TOKEN);
