@@ -46,3 +46,31 @@ export default {
     return interaction.reply({ embeds: [embed], ephemeral: true });
   }
 };
+
+const coachStrikes = strikes.filter(s => s.coachId === coachUser.id);
+
+if (coachStrikes.length >= 3) {
+  coach.suspended = true;
+  coach.verified = false;
+
+  fs.writeFileSync(coachesPath, JSON.stringify(coaches, null, 2));
+
+  // Remove role
+  const member = await interaction.guild.members.fetch(coachUser.id).catch(() => null);
+  if (member) {
+    await member.roles.remove(verifiedRoleId).catch(() => {});
+  }
+
+  // DM coach
+  try {
+    await coachUser.send(
+      "⛔ You have been **automatically suspended** for reaching 3 strikes."
+    );
+  } catch {}
+
+  logAdminEvent(
+    interaction.client,
+    "⛔ Auto-Suspension",
+    `${coachUser} has been suspended for reaching **3 strikes**.`
+  );
+}
