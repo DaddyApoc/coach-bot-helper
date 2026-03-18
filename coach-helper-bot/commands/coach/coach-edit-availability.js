@@ -1,11 +1,16 @@
 import {
   SlashCommandBuilder,
-  EmbedBuilder,
-  PermissionFlagsBits
+  EmbedBuilder
 } from "discord.js";
 import fs from "fs";
 
 const filePath = "/data/coaches.json";
+
+function ensureFile() {
+  if (!fs.existsSync(filePath)) {
+    fs.writeFileSync(filePath, JSON.stringify({}));
+  }
+}
 
 export default {
   data: new SlashCommandBuilder()
@@ -23,32 +28,33 @@ export default {
     ),
 
   async execute(interaction) {
-    const coachUser = interaction.options.getUser("coach");
-    const newAvailability = interaction.options.getString("availability");
+    try {
+      ensureFile();
+      const coachUser = interaction.options.getUser("coach");
+      const newAvailability = interaction.options.getString("availability");
 
-    let coaches = [];
-    if (fs.existsSync(filePath)) {
-      coaches = JSON.parse(fs.readFileSync(filePath, "utf8"));
+      const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
+
+      if (!data[coachUser.id]) {
+        return interaction.reply({
+          content: "❌ That coach is not registered.",
+          ephemeral: true,
+        });
+      }
+
+      data[coachUser.id].availability = newAvailability;
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+
+      const embed = new EmbedBuilder()
+        .setTitle("Coach Availability Updated")
+        .setDescription(`Availability updated for **${coachUser.username}**`)
+        .addFields({ name: "New Availability", value: newAvailability })
+        .setColor("Aqua");
+
+      return interaction.reply({ embeds: [embed] });
+    } catch (error) {
+      console.error(error);
+      await interaction.reply("❌ Error updating availability.");
     }
-
-    const coach = coaches.find(c => c.id === coachUser.id);
-    if (!coach) {
-      return interaction.reply({
-        content: "❌ That coach is not registered.",
-        ephemeral: true,
-      });
-    }
-
-    coach.availability = newAvailability;
-
-    fs.writeFileSync(filePath, JSON.stringify(coaches, null, 2));
-
-    const embed = new EmbedBuilder()
-      .setTitle("Coach Availability Updated")
-      .setDescription(`Availability updated for **${coachUser.username}**`)
-      .addFields({ name: "New Availability", value: newAvailability })
-      .setColor("Aqua");
-
-    return interaction.reply({ embeds: [embed] });
   }
 };
