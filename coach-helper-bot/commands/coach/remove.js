@@ -1,10 +1,5 @@
 import { SlashCommandBuilder } from "discord.js";
 import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 export default {
   data: new SlashCommandBuilder()
@@ -17,9 +12,14 @@ export default {
     ),
 
   async execute(interaction) {
+    const filePath = "/data/coaches.json";
+    
+    if (!fs.existsSync(filePath)) {
+      fs.writeFileSync(filePath, JSON.stringify({}));
+    }
+    
     const user = interaction.options.getUser("user");
 
-    const filePath = path.join(__dirname, "..", "..", "coaches.json");
     const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
 
     if (!data[user.id]) {
