@@ -6,6 +6,12 @@ import fs from "fs";
 
 const filePath = "/data/coaches.json";
 
+function ensureFile() {
+  if (!fs.existsSync(filePath)) {
+    fs.writeFileSync(filePath, JSON.stringify({}));
+  }
+}
+
 export default {
   data: new SlashCommandBuilder()
     .setName("coach-edit-tags")
@@ -17,37 +23,39 @@ export default {
     )
     .addStringOption(option =>
       option.setName("tags")
-        .setDescription("Comma-separated tags (e.g. aim, movement, rifles)")
+        .setDescription("Tags (comma-separated)")
         .setRequired(true)
     ),
 
   async execute(interaction) {
-    const coachUser = interaction.options.getUser("coach");
-    const newTags = interaction.options.getString("tags");
+    try {
+      ensureFile();
+      const coachUser = interaction.options.getUser("coach");
+      const tagsInput = interaction.options.getString("tags");
+      const tags = tagsInput.split(",").map(t => t.trim());
 
-    let coaches = [];
-    if (fs.existsSync(filePath)) {
-      coaches = JSON.parse(fs.readFileSync(filePath, "utf8"));
+      const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
+
+      if (!data[coachUser.id]) {
+        return interaction.reply({
+          content: "❌ That coach is not registered.",
+          ephemeral: true,
+        });
+      }
+
+      data[coachUser.id].tags = tags;
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+
+      const embed = new EmbedBuilder()
+        .setTitle("Coach Tags Updated")
+        .setDescription(`Tags updated for **${coachUser.username}**`)
+        .addFields({ name: "New Tags", value: tags.join(", ") })
+        .setColor("Aqua");
+
+      return interaction.reply({ embeds: [embed] });
+    } catch (error) {
+      console.error(error);
+      await interaction.reply("❌ Error updating tags.");
     }
-
-    const coach = coaches.find(c => c.id === coachUser.id);
-    if (!coach) {
-      return interaction.reply({
-        content: "❌ That coach is not registered.",
-        ephemeral: true,
-      });
-    }
-
-    coach.tags = newTags.split(",").map(t => t.trim());
-
-    fs.writeFileSync(filePath, JSON.stringify(coaches, null, 2));
-
-    const embed = new EmbedBuilder()
-      .setTitle("Coach Tags Updated")
-      .setDescription(`Tags updated for **${coachUser.username}**`)
-      .addFields({ name: "New Tags", value: coach.tags.join(", ") })
-      .setColor("Pink");
-
-    return interaction.reply({ embeds: [embed] });
   }
 };
