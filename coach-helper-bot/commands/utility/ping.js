@@ -1,11 +1,11 @@
-import { SlashCommandBuilder } from "discord.js";
+const { SlashCommandBuilder } = require('discord.js');
 
-export default {
+module.exports = {
   data: new SlashCommandBuilder()
-    .setName("ping")
-    .setDescription("Check if Coach helper.exe is alive"),
+    .setName('ping')
+    .setDescription('Check if Coach helper.exe is alive'),
 
   async execute(interaction) {
-    await interaction.reply("🏓 Coach helper.exe is online and responsive.");
-  }
+    await interaction.reply('🏓 Coach helper.exe is online and responsive.');
+  },
 };
