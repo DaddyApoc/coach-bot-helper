@@ -34,12 +34,6 @@ for (const folder of commandFolders) {
 
 client.once(Events.ClientReady, c => {
   console.log(`✅ Logged in as ${c.user.tag} — Coach helper.exe is online.`);
-  
-  // Start session reminder - runs every minute
-  setInterval(async () => {
-    const reminderModule = (await import("./commands/utils/sessionReminder.js")).default;
-    await reminderModule.execute(client);
-  }, 60000); // 60000ms = 1 minute
 });
 
 client.on(Events.InteractionCreate, async interaction => {
