@@ -39,7 +39,7 @@ export default {
         .setColor("Blue")
         .setDescription(
           coachBookings
-            .map(b => `**${b.studentName}** — ${b.time} (${b.status})`)
+            .map(b => `**${b.studentName}** — ${b.displayTime} (${b.timezone}) [${b.status}]`)
             .join("\n")
         );
 
