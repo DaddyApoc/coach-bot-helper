@@ -2,50 +2,57 @@ import fs from "fs";
 
 const bookingsPath = "/data/bookings.json";
 
-export function startSessionReminder(client) {
-  setInterval(async () => {
-    try {
-      if (!fs.existsSync(bookingsPath)) return;
+function ensureFile() {
+  if (!fs.existsSync(bookingsPath)) {
+    fs.writeFileSync(bookingsPath, JSON.stringify([]));
+  }
+}
 
+export default {
+  async execute(client) {
+    try {
+      ensureFile();
       let bookings = JSON.parse(fs.readFileSync(bookingsPath, "utf8"));
-      const now = Date.now();
 
       for (const booking of bookings) {
-        if (booking.status !== "accepted") continue;
-        if (booking.reminderSent) continue;
+        if (booking.status !== "accepted" || booking.reminderSent) continue;
 
-        const sessionTime = Date.parse(booking.time);
-        if (isNaN(sessionTime)) continue;
+        const sessionTime = new Date(booking.time).getTime();
+        const now = Date.now();
+        const hoursUntil = (sessionTime - now) / (1000 * 60 * 60);
 
-        const diff = sessionTime - now;
-
-        // 10 minutes = 600,000 ms
-        if (diff > 0 && diff <= 600000) {
-          // Send reminders
+        // Send reminder 24 hours before
+        if (hoursUntil <= 24 && hoursUntil > 23) {
           try {
             const coach = await client.users.fetch(booking.coachId);
             const student = await client.users.fetch(booking.studentId);
 
-            await coach.send(
-              `⏰ **Reminder:** You have a coaching session with **${booking.studentName}** in **10 minutes**.\n` +
-              `Time: ${booking.time}`
-            );
+            const coachEmbed = {
+              title: "⏰ Session Reminder",
+              description: `Your session with **${booking.studentName}** is in 24 hours!`,
+              color: 0xFFA500,
+              fields: [{ name: "Time", value: booking.time }]
+            };
 
-            await student.send(
-              `⏰ **Reminder:** Your session with **${booking.coachName}** starts in **10 minutes**.\n` +
-              `Time: ${booking.time}`
-            );
+            const studentEmbed = {
+              title: "⏰ Session Reminder",
+              description: `Your session with **${booking.coachName}** is in 24 hours!`,
+              color: 0xFFA500,
+              fields: [{ name: "Time", value: booking.time }]
+            };
+
+            await coach.send({ embeds: [coachEmbed] });
+            await student.send({ embeds: [studentEmbed] });
+
+            booking.reminderSent = true;
+            fs.writeFileSync(bookingsPath, JSON.stringify(bookings, null, 2));
           } catch (err) {
             console.log("Reminder DM failed:", err);
           }
-
-          booking.reminderSent = true;
         }
       }
-
-      fs.writeFileSync(bookingsPath, JSON.stringify(bookings, null, 2));
-    } catch (err) {
-      console.log("Reminder engine error:", err);
+    } catch (error) {
+      console.error("Session reminder error:", error);
     }
-  }, 1000 * 60 * 5); // every 5 minutes
-}
+  }
+};
