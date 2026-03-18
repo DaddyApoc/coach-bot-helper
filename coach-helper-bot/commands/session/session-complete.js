@@ -5,61 +5,74 @@ import {
 import fs from "fs";
 
 const bookingsPath = "/data/bookings.json";
-const coachesPath = "/data/coaches.json";
+
+function ensureFile() {
+  if (!fs.existsSync(bookingsPath)) {
+    fs.writeFileSync(bookingsPath, JSON.stringify([]));
+  }
+}
 
 export default {
   data: new SlashCommandBuilder()
     .setName("session-complete")
-    .setDescription("Mark a session as completed and award XP.")
+    .setDescription("Mark a coaching session as complete.")
     .addStringOption(option =>
-      option.setName("bookingid")
-        .setDescription("The booking ID to complete")
+      option.setName("booking-id")
+        .setDescription("The booking ID to mark complete")
         .setRequired(true)
     ),
 
   async execute(interaction) {
-    const bookingId = interaction.options.getString("bookingid");
-    const coachId = interaction.user.id;
-
-    let bookings = JSON.parse(fs.readFileSync(bookingsPath, "utf8"));
-    let coaches = JSON.parse(fs.readFileSync(coachesPath, "utf8"));
-
-    const booking = bookings.find(b => b.id === bookingId);
-
-    if (!booking) {
-      return interaction.reply({ content: "❌ Booking not found.", ephemeral: true });
-    }
-
-    if (booking.coachId !== coachId) {
-      return interaction.reply({ content: "❌ This booking is not for you.", ephemeral: true });
-    }
-
-    if (booking.status !== "accepted") {
-      return interaction.reply({ content: "❌ This session is not accepted yet.", ephemeral: true });
-    }
-
-    booking.status = "completed";
-
-    // Award XP
-    const coach = coaches.find(c => c.id === coachId);
-    coach.xp = (coach.xp || 0) + 50;
-
-    fs.writeFileSync(bookingsPath, JSON.stringify(bookings, null, 2));
-    fs.writeFileSync(coachesPath, JSON.stringify(coaches, null, 2));
-
-    // Ask student for rating
     try {
-      const student = await interaction.client.users.fetch(booking.studentId);
-      await student.send(
-        `⭐ Your session with **${booking.coachName}** is complete!\n` +
-        `Please rate your coach using:\n` +
-        `\`/rate-coach coach:@${booking.coachName} rating:1-5 comment:"..." \``
-      );
-    } catch {}
+      ensureFile();
+      const bookingId = interaction.options.getString("booking-id");
 
-    return interaction.reply({
-      content: `✅ Session completed. XP awarded.`,
-      ephemeral: true
-    });
+      let bookings = JSON.parse(fs.readFileSync(bookingsPath, "utf8"));
+      const booking = bookings.find(b => b.id === bookingId);
+
+      if (!booking) {
+        return interaction.reply({
+          content: "❌ Booking not found.",
+          ephemeral: true
+        });
+      }
+
+      if (booking.coachId !== interaction.user.id) {
+        return interaction.reply({
+          content: "❌ Only the coach can mark a session complete.",
+          ephemeral: true
+        });
+      }
+
+      booking.status = "completed";
+      booking.completedAt = new Date().toISOString();
+      fs.writeFileSync(bookingsPath, JSON.stringify(bookings, null, 2));
+
+      const embed = new EmbedBuilder()
+        .setTitle("✅ Session Completed")
+        .setColor("Green")
+        .addFields(
+          { name: "Student", value: booking.studentName },
+          { name: "Time", value: booking.time }
+        );
+
+      await interaction.reply({ embeds: [embed] });
+
+      try {
+        const student = await interaction.client.users.fetch(booking.studentId);
+        const dmEmbed = new EmbedBuilder()
+          .setTitle("✅ Session Completed")
+          .setColor("Green")
+          .setDescription(`Your session with **${booking.coachName}** has been marked complete!`)
+          .addFields({ name: "Time", value: booking.time });
+
+        await student.send({ embeds: [dmEmbed] });
+      } catch (err) {
+        console.log("DM failed:", err);
+      }
+    } catch (error) {
+      console.error(error);
+      await interaction.reply("❌ Error completing session.");
+    }
   }
 };
