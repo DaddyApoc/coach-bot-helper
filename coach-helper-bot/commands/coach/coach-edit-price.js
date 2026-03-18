@@ -1,10 +1,16 @@
 import {
   SlashCommandBuilder,
-  EmbedBuilder,
+  EmbedBuilder
 } from "discord.js";
 import fs from "fs";
 
 const filePath = "/data/coaches.json";
+
+function ensureFile() {
+  if (!fs.existsSync(filePath)) {
+    fs.writeFileSync(filePath, JSON.stringify({}));
+  }
+}
 
 export default {
   data: new SlashCommandBuilder()
@@ -15,41 +21,40 @@ export default {
         .setDescription("The coach to edit")
         .setRequired(true)
     )
-    .addIntegerOption(option =>
+    .addNumberOption(option =>
       option.setName("price")
-        .setDescription("New price per session")
+        .setDescription("New price")
         .setRequired(true)
     ),
 
   async execute(interaction) {
-    const coachUser = interaction.options.getUser("coach");
-    const newPrice = interaction.options.getInteger("price");
+    try {
+      ensureFile();
+      const coachUser = interaction.options.getUser("coach");
+      const newPrice = interaction.options.getNumber("price");
 
-    let coaches = [];
+      const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
 
-    if (fs.existsSync(filePath)) {
-      coaches = JSON.parse(fs.readFileSync(filePath, "utf8"));
+      if (!data[coachUser.id]) {
+        return interaction.reply({
+          content: "❌ That coach is not registered.",
+          ephemeral: true,
+        });
+      }
+
+      data[coachUser.id].price = newPrice;
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+
+      const embed = new EmbedBuilder()
+        .setTitle("Coach Price Updated")
+        .setDescription(`Price updated for **${coachUser.username}**`)
+        .addFields({ name: "New Price", value: `$${newPrice}` })
+        .setColor("Aqua");
+
+      return interaction.reply({ embeds: [embed] });
+    } catch (error) {
+      console.error(error);
+      await interaction.reply("❌ Error updating price.");
     }
-
-    const coach = coaches.find(c => c.id === coachUser.id);
-
-    if (!coach) {
-      return interaction.reply({
-        content: "❌ That coach is not registered.",
-        ephemeral: true,
-      });
-    }
-
-    coach.price = newPrice;
-
-    fs.writeFileSync(filePath, JSON.stringify(coaches, null, 2));
-
-    const embed = new EmbedBuilder()
-      .setTitle("Coach Price Updated")
-      .setDescription(`Price updated for **${coachUser.username}**`)
-      .addFields({ name: "New Price", value: `$${newPrice}` })
-      .setColor("Gold");
-
-    return interaction.reply({ embeds: [embed] });
   }
 };
