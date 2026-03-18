@@ -48,10 +48,10 @@ export default {
     )
     .addIntegerOption(option =>
       option.setName("hour")
-        .setDescription("Hour (0-23)")
+        .setDescription("Hour (1-12)")
         .setRequired(true)
-        .setMinValue(0)
-        .setMaxValue(23)
+        .setMinValue(1)
+        .setMaxValue(12)
     )
     .addIntegerOption(option =>
       option.setName("minute")
@@ -59,6 +59,20 @@ export default {
         .setRequired(true)
         .setMinValue(0)
         .setMaxValue(59)
+    )
+    .addStringOption(option =>
+      option.setName("period")
+        .setDescription("AM or PM")
+        .setRequired(true)
+        .addChoices(
+          { name: "AM", value: "AM" },
+          { name: "PM", value: "PM" }
+        )
+    )
+    .addStringOption(option =>
+      option.setName("timezone")
+        .setDescription("Your timezone (e.g. America/New_York, Europe/London, Asia/Tokyo)")
+        .setRequired(true)
     )
     .addStringOption(option =>
       option.setName("notes")
@@ -74,13 +88,56 @@ export default {
       const day = interaction.options.getInteger("day");
       const month = interaction.options.getInteger("month");
       const year = interaction.options.getInteger("year");
-      const hour = interaction.options.getInteger("hour");
+      let hour = interaction.options.getInteger("hour");
       const minute = interaction.options.getInteger("minute");
+      const period = interaction.options.getString("period");
+      const timezone = interaction.options.getString("timezone");
       const notes = interaction.options.getString("notes") || "None";
 
-      // Create ISO string from components
-      const dateString = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00Z`;
-      const sessionTime = new Date(dateString);
+      // Convert 12-hour to 24-hour format
+      if (period === "PM" && hour !== 12) {
+        hour += 12;
+      } else if (period === "AM" && hour === 12) {
+        hour = 0;
+      }
+
+      // Create date string in UTC first
+      const dateString = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00`;
+      
+      // Try to create date with timezone
+      let sessionTime;
+      try {
+        // Use Intl to get timezone offset
+        const formatter = new Intl.DateTimeFormat("en-US", {
+          timeZone: timezone,
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: false
+        });
+
+        // Create a test date to get the offset
+        const testDate = new Date(dateString);
+        const parts = formatter.formatToParts(testDate);
+        const tzDate = new Date(
+          parseInt(parts.find(p => p.type === "year").value),
+          parseInt(parts.find(p => p.type === "month").value) - 1,
+          parseInt(parts.find(p => p.type === "day").value),
+          parseInt(parts.find(p => p.type === "hour").value),
+          parseInt(parts.find(p => p.type === "minute").value),
+          parseInt(parts.find(p => p.type === "second").value)
+        );
+
+        sessionTime = tzDate;
+      } catch (err) {
+        return interaction.reply({
+          content: `❌ Invalid timezone. Use format like: America/New_York, Europe/London, Asia/Tokyo`,
+          ephemeral: true
+        });
+      }
 
       // Validate date
       if (isNaN(sessionTime.getTime())) {
@@ -111,7 +168,7 @@ export default {
 
       const conflict = bookings.find(b =>
         b.coachId === coachUser.id &&
-        b.sessionTime === dateString &&
+        b.sessionTime === sessionTime.toISOString() &&
         (b.status === "pending" || b.status === "accepted")
       );
 
@@ -128,7 +185,9 @@ export default {
         coachName: coachUser.username,
         studentId: studentUser.id,
         studentName: studentUser.username,
-        sessionTime: dateString,
+        sessionTime: sessionTime.toISOString(),
+        timezone: timezone,
+        displayTime: `${month}/${day}/${year} at ${String(hour % 12 || 12).padStart(2, "0")}:${String(minute).padStart(2, "0")} ${period}`,
         notes,
         status: "pending",
         reminderSent: false,
@@ -144,7 +203,7 @@ export default {
           .setColor("Blue")
           .addFields(
             { name: "Student", value: studentUser.username },
-            { name: "Session Time", value: `<t:${Math.floor(sessionTime.getTime() / 1000)}:F>` },
+            { name: "Session Time", value: `${booking.displayTime} (${timezone})` },
             { name: "Notes", value: notes },
             { name: "Booking ID", value: booking.id }
           );
@@ -159,7 +218,7 @@ export default {
         .setColor("Green")
         .setDescription(`Your session request has been sent to **${coachUser.username}**.`)
         .addFields(
-          { name: "Session Time", value: `<t:${Math.floor(sessionTime.getTime() / 1000)}:F>` },
+          { name: "Session Time", value: `${booking.displayTime} (${timezone})` },
           { name: "Notes", value: notes },
           { name: "Booking ID", value: booking.id }
         );
