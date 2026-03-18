@@ -60,3 +60,14 @@ export default {
     });
   }
 };
+
+// Auto-suspend at 3 strikes
+const coachStrikes = strikes.filter(s => s.coachId === coachUser.id);
+if (coachStrikes.length >= 3) {
+  // We will implement full suspension in System 7.3
+  logAdminEvent(
+    interaction.client,
+    "⛔ Auto-Suspension Triggered",
+    `${coachUser} has reached **3 strikes** and will be suspended.`
+  );
+}
