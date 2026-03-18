@@ -1,244 +1,61 @@
 import {
   SlashCommandBuilder,
-  EmbedBuilder,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle
+  EmbedBuilder
 } from "discord.js";
 import fs from "fs";
 
 const filePath = "/data/coaches.json";
-const RESULTS_PER_PAGE = 5;
+
+function ensureFile() {
+  if (!fs.existsSync(filePath)) {
+    fs.writeFileSync(filePath, JSON.stringify({}));
+  }
+}
 
 export default {
   data: new SlashCommandBuilder()
     .setName("coach-search")
-    .setDescription("Search for coaches by weapon, rank, tags, availability, price, or rating.")
+    .setDescription("Search for coaches by tag or weapon.")
     .addStringOption(option =>
-      option.setName("weapon")
-        .setDescription("Weapon the coach must teach")
-    )
-    .addStringOption(option =>
-      option.setName("rank")
-        .setDescription("Rank the coach must have")
-    )
-    .addStringOption(option =>
-      option.setName("tag")
-        .setDescription("Tag the coach must have (movement, aim, etc.)")
-    )
-    .addStringOption(option =>
-      option.setName("availability")
-        .setDescription("Availability (Online, Offline, Busy, etc.)")
-    )
-    .addIntegerOption(option =>
-      option.setName("maxprice")
-        .setDescription("Maximum price")
-    )
-    .addNumberOption(option =>
-      option.setName("minrating")
-        .setDescription("Minimum rating (1–5)")
-    )
-    .addStringOption(option =>
-      option.setName("sort")
-        .setDescription("Sort results")
-        .addChoices(
-          { name: "Rating (High → Low)", value: "rating" },
-          { name: "Price (Low → High)", value: "price" },
-          { name: "Rank (A → Z)", value: "rank" },
-          { name: "Alphabetical (A → Z)", value: "alpha" },
-          { name: "Tags (Most Matches)", value: "tags" },
-          { name: "Smart (Rating + Price)", value: "smart" }
-        )
+      option.setName("query")
+        .setDescription("Search term (tag or weapon)")
+        .setRequired(true)
     ),
 
   async execute(interaction) {
-    let coaches = [];
+    try {
+      ensureFile();
+      const query = interaction.options.getString("query").toLowerCase();
 
-    if (fs.existsSync(filePath)) {
-      coaches = JSON.parse(fs.readFileSync(filePath, "utf8"));
-    }
+      const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
+      const results = [];
 
-    if (coaches.length === 0) {
-      return interaction.reply({
-        content: "❌ No coaches are registered yet.",
-        ephemeral: true,
-      });
-    }
-
-    // Filters
-    const weapon = interaction.options.getString("weapon");
-    const rank = interaction.options.getString("rank");
-    const tag = interaction.options.getString("tag");
-    const availability = interaction.options.getString("availability");
-    const maxPrice = interaction.options.getInteger("maxprice");
-    const minRating = interaction.options.getNumber("minrating");
-    const sort = interaction.options.getString("sort");
-
-    let results = coaches;
-
-    if (weapon) {
-      results = results.filter(c =>
-        c.weapons?.map(w => w.toLowerCase()).includes(weapon.toLowerCase())
-      );
-    }
-
-    if (rank) {
-      results = results.filter(c =>
-        c.rank?.toLowerCase() === rank.toLowerCase()
-      );
-    }
-
-    if (tag) {
-      results = results.filter(c =>
-        c.tags?.map(t => t.toLowerCase()).includes(tag.toLowerCase())
-      );
-    }
-
-    if (availability) {
-      results = results.filter(c =>
-        c.availability?.toLowerCase() === availability.toLowerCase()
-      );
-    }
-
-    if (maxPrice !== null) {
-      results = results.filter(c =>
-        c.price !== undefined && c.price <= maxPrice
-      );
-    }
-
-    if (minRating !== null) {
-      results = results.filter(c =>
-        c.rating !== undefined && c.rating >= minRating
-      );
-    }
-
-    if (results.length === 0) {
-      return interaction.reply({
-        content: "❌ No coaches match your search filters.",
-        ephemeral: true,
-      });
-    }
-
-    // ⭐ SORTING ⭐
-    if (sort === "rating") {
-      results.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-    }
-
-    if (sort === "price") {
-      results.sort((a, b) => (a.price || 9999) - (b.price || 9999));
-    }
-
-    if (sort === "rank") {
-      results.sort((a, b) => (a.rank || "").localeCompare(b.rank || ""));
-    }
-
-    if (sort === "alpha") {
-      results.sort((a, b) => (a.username || "").localeCompare(b.username || ""));
-    }
-
-    if (sort === "tags" && tag) {
-      results.sort((a, b) => {
-        const aMatch = a.tags?.includes(tag) ? 1 : 0;
-        const bMatch = b.tags?.includes(tag) ? 1 : 0;
-        return bMatch - aMatch;
-      });
-    }
-
-    // ⭐ SMART SORTING (Rating first, then price)
-    if (sort === "smart") {
-      const maxPriceValue = Math.max(...results.map(c => c.price || 0), 1);
-
-      results.sort((a, b) => {
-        const aRating = a.rating || 0;
-        const bRating = b.rating || 0;
-
-        const aPriceScore = a.price ? (1 - (a.price / maxPriceValue)) : 1;
-        const bPriceScore = b.price ? (1 - (b.price / maxPriceValue)) : 1;
-
-        const aScore = (aRating * 0.7) + (aPriceScore * 0.3);
-        const bScore = (bRating * 0.7) + (bPriceScore * 0.3);
-
-        return bScore - aScore;
-      });
-    }
-
-    // ⭐ PAGINATION ⭐
-    const totalPages = Math.ceil(results.length / RESULTS_PER_PAGE);
-
-    const generatePage = (page) => {
-      const start = page * RESULTS_PER_PAGE;
-      const pageResults = results.slice(start, start + RESULTS_PER_PAGE);
-
-      const embed = new EmbedBuilder()
-        .setTitle("🔍 Coach Search Results")
-        .setColor("Green")
-        .setFooter({ text: `Page ${page + 1} / ${totalPages}` });
-
-      pageResults.forEach(c => {
-        embed.addFields({
-          name: c.username || c.id,
-          value:
-            `**Rank:** ${c.rank || "N/A"}\n` +
-            `**Weapons:** ${c.weapons?.join(", ") || "None"}\n` +
-            `**Availability:** ${c.availability || "N/A"}\n` +
-            `**Price:** ${c.price ? `$${c.price}` : "N/A"}\n` +
-            `**Rating:** ${c.rating ? `${c.rating} ⭐` : "No rating"}\n` +
-            `**Tags:** ${c.tags?.join(", ") || "None"}`
-        });
-      });
-
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId(`prev_${page}`)
-          .setLabel("◀️ Back")
-          .setStyle(ButtonStyle.Secondary)
-          .setDisabled(page === 0),
-
-        new ButtonBuilder()
-          .setCustomId("page_display")
-          .setLabel(`Page ${page + 1}/${totalPages}`)
-          .setStyle(ButtonStyle.Secondary)
-          .setDisabled(true),
-
-        new ButtonBuilder()
-          .setCustomId(`next_${page}`)
-          .setLabel("Next ▶️")
-          .setStyle(ButtonStyle.Secondary)
-          .setDisabled(page === totalPages - 1)
-      );
-
-      return { embed, row };
-    };
-
-    const { embed, row } = generatePage(0);
-
-    const message = await interaction.reply({
-      embeds: [embed],
-      components: [row],
-      fetchReply: true
-    });
-
-    // Button collector
-    const collector = message.createMessageComponentCollector({
-      time: 1000 * 60 * 5 // 5 minutes
-    });
-
-    collector.on("collect", async (btn) => {
-      if (btn.user.id !== interaction.user.id) {
-        return btn.reply({ content: "This isn't your search.", ephemeral: true });
+      for (const [coachId, coach] of Object.entries(data)) {
+        const tags = coach.tags || [];
+        const weapons = coach.weapons || [];
+        
+        if (tags.some(t => t.toLowerCase().includes(query)) ||
+            weapons.some(w => w.toLowerCase().includes(query))) {
+          results.push({ id: coachId, ...coach });
+        }
       }
 
-      let page = parseInt(btn.customId.split("_")[1]);
+      if (results.length === 0) {
+        return interaction.reply({
+          content: `❌ No coaches found matching "${query}".`,
+          ephemeral: true
+        });
+      }
 
-      if (btn.customId.startsWith("next")) page++;
-      if (btn.customId.startsWith("prev")) page--;
+      const embed = new EmbedBuilder()
+        .setTitle(`Search Results for "${query}"`)
+        .setColor("Blue")
+        .setDescription(results.map(c => `<@${c.id}> — ${c.bio || "No bio"}`).join("\n"));
 
-      const { embed: newEmbed, row: newRow } = generatePage(page);
-
-      await btn.update({
-        embeds: [newEmbed],
-        components: [newRow]
-      });
-    });
+      return interaction.reply({ embeds: [embed] });
+    } catch (error) {
+      console.error(error);
+      await interaction.reply("❌ Error searching coaches.");
+    }
   }
 };
