@@ -87,3 +87,16 @@ app.get("/payment/cancel", (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Stripe server running on ${PORT}`));
+
+import { addToWallet } from "./utils/wallet.js";
+
+case "checkout.session.completed": {
+  const session = event.data.object;
+  const discordUserId = session.metadata.discordUserId;
+  const amount = session.amount_total / 100;
+
+  addToWallet(discordUserId, amount, session.id);
+
+  console.log(`Wallet credited: ${discordUserId} +$${amount}`);
+  break;
+}
