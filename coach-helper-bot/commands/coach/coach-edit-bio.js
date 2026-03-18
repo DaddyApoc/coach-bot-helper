@@ -1,11 +1,16 @@
 import {
   SlashCommandBuilder,
-  EmbedBuilder,
+  EmbedBuilder
 } from "discord.js";
 import fs from "fs";
-import path from "path";
 
 const filePath = "/data/coaches.json";
+
+function ensureFile() {
+  if (!fs.existsSync(filePath)) {
+    fs.writeFileSync(filePath, JSON.stringify({}));
+  }
+}
 
 export default {
   data: new SlashCommandBuilder()
@@ -18,39 +23,38 @@ export default {
     )
     .addStringOption(option =>
       option.setName("bio")
-        .setDescription("The new bio")
+        .setDescription("New bio")
         .setRequired(true)
     ),
 
   async execute(interaction) {
-    const coachUser = interaction.options.getUser("coach");
-    const newBio = interaction.options.getString("bio");
+    try {
+      ensureFile();
+      const coachUser = interaction.options.getUser("coach");
+      const newBio = interaction.options.getString("bio");
 
-    let coaches = [];
+      const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
 
-    if (fs.existsSync(filePath)) {
-      coaches = JSON.parse(fs.readFileSync(filePath, "utf8"));
+      if (!data[coachUser.id]) {
+        return interaction.reply({
+          content: "❌ That coach is not registered.",
+          ephemeral: true,
+        });
+      }
+
+      data[coachUser.id].bio = newBio;
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+
+      const embed = new EmbedBuilder()
+        .setTitle("Coach Bio Updated")
+        .setDescription(`Bio updated for **${coachUser.username}**`)
+        .addFields({ name: "New Bio", value: newBio })
+        .setColor("Aqua");
+
+      return interaction.reply({ embeds: [embed] });
+    } catch (error) {
+      console.error(error);
+      await interaction.reply("❌ Error updating bio.");
     }
-
-    const coach = coaches.find(c => c.id === coachUser.id);
-
-    if (!coach) {
-      return interaction.reply({
-        content: "❌ That coach is not registered.",
-        ephemeral: true,
-      });
-    }
-
-    coach.bio = newBio;
-
-    fs.writeFileSync(filePath, JSON.stringify(coaches, null, 2));
-
-    const embed = new EmbedBuilder()
-      .setTitle("Coach Bio Updated")
-      .setDescription(`Bio updated for **${coachUser.username}**`)
-      .addFields({ name: "New Bio", value: newBio })
-      .setColor("Green");
-
-    return interaction.reply({ embeds: [embed] });
   }
 };
