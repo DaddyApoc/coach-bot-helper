@@ -6,6 +6,12 @@ import fs from "fs";
 
 const filePath = "/data/coaches.json";
 
+function ensureFile() {
+  if (!fs.existsSync(filePath)) {
+    fs.writeFileSync(filePath, JSON.stringify({}));
+  }
+}
+
 export default {
   data: new SlashCommandBuilder()
     .setName("coach-info")
@@ -17,44 +23,39 @@ export default {
     ),
 
   async execute(interaction) {
-    const coachUser = interaction.options.getUser("coach");
+    try {
+      ensureFile();
+      const coachUser = interaction.options.getUser("coach");
 
-    let coaches = [];
-    if (fs.existsSync(filePath)) {
-      coaches = JSON.parse(fs.readFileSync(filePath, "utf8"));
+      const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
+      const coach = data[coachUser.id];
+
+      if (!coach) {
+        return interaction.reply({
+          content: "❌ That coach is not registered.",
+          ephemeral: true,
+        });
+      }
+
+      const embed = new EmbedBuilder()
+        .setTitle(`${coachUser.username}'s Coaching Profile`)
+        .setThumbnail(coachUser.displayAvatarURL())
+        .setColor("White")
+        .addFields(
+          { name: "Bio", value: coach.bio || "No bio set." },
+          { name: "Rank", value: coach.rank || "Not set", inline: true },
+          { name: "Price", value: coach.price ? `$${coach.price}` : "Not set", inline: true },
+          { name: "Rating", value: coach.rating ? `${coach.rating} ⭐` : "No rating", inline: true },
+          { name: "Weapons", value: coach.weapons?.length ? coach.weapons.join(", ") : "None listed" },
+          { name: "Availability", value: coach.availability || "Not set", inline: true },
+          { name: "Schedule", value: coach.schedule || "Not set", inline: true },
+          { name: "Tags", value: coach.tags?.length ? coach.tags.join(", ") : "No tags" }
+        );
+
+      return interaction.reply({ embeds: [embed] });
+    } catch (error) {
+      console.error(error);
+      await interaction.reply("❌ Error retrieving coach info.");
     }
-
-    const coach = coaches.find(c => c.id === coachUser.id);
-
-    if (!coach) {
-      return interaction.reply({
-        content: "❌ That coach is not registered.",
-        ephemeral: true,
-      });
-    }
-
-    // Ensure joined date exists
-    if (!coach.joined) {
-      coach.joined = new Date().toISOString();
-      fs.writeFileSync(filePath, JSON.stringify(coaches, null, 2));
-    }
-
-    const embed = new EmbedBuilder()
-      .setTitle(`${coachUser.username}'s Coaching Profile`)
-      .setThumbnail(coachUser.displayAvatarURL())
-      .setColor("White")
-      .addFields(
-        { name: "Bio", value: coach.bio || "No bio set." },
-        { name: "Rank", value: coach.rank || "Not set", inline: true },
-        { name: "Price", value: coach.price ? `$${coach.price}` : "Not set", inline: true },
-        { name: "Rating", value: coach.rating ? `${coach.rating} ⭐` : "No rating", inline: true },
-        { name: "Weapons", value: coach.weapons?.length ? coach.weapons.join(", ") : "None listed" },
-        { name: "Availability", value: coach.availability || "Not set", inline: true },
-        { name: "Schedule", value: coach.schedule || "Not set", inline: true },
-        { name: "Tags", value: coach.tags?.length ? coach.tags.join(", ") : "No tags" },
-        { name: "Joined", value: `<t:${Math.floor(new Date(coach.joined).getTime() / 1000)}:D>` }
-      );
-
-    return interaction.reply({ embeds: [embed] });
   }
 };
