@@ -13,3 +13,7 @@
     "dotenv": "^16.4.5"
   }
 }
+
+"scripts": {
+  "start": "node payments-server.js"
+}
