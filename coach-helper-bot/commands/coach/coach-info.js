@@ -37,6 +37,10 @@ export default {
         });
       }
 
+      const pricingText = coach.pricing
+        ? `1 Session: $${coach.pricing.oneSession}\n3 Sessions: $${coach.pricing.threeSessions}\n5 Sessions: $${coach.pricing.fiveSessions}`
+        : "Not set";
+
       const embed = new EmbedBuilder()
         .setTitle(`${coachUser.username}'s Coaching Profile`)
         .setThumbnail(coachUser.displayAvatarURL())
@@ -44,8 +48,8 @@ export default {
         .addFields(
           { name: "Bio", value: coach.bio || "No bio set." },
           { name: "Rank", value: coach.rank || "Not set", inline: true },
-          { name: "Price", value: coach.price ? `$${coach.price}` : "Not set", inline: true },
           { name: "Rating", value: coach.rating ? `${coach.rating} ⭐` : "No rating", inline: true },
+          { name: "Pricing", value: pricingText },
           { name: "Weapons", value: coach.weapons?.length ? coach.weapons.join(", ") : "None listed" },
           { name: "Availability", value: coach.availability || "Not set", inline: true },
           { name: "Schedule", value: coach.schedule || "Not set", inline: true },
