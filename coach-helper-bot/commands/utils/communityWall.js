@@ -62,3 +62,24 @@ export async function postSessionComplete(client, booking) {
 
   channel.send({ embeds: [embed] });
 }
+
+export async function postNewCoach(client, coach) {
+  if (!coach.verified) return; // only verified coaches go public
+
+  const channel = getWallChannel(client);
+  if (!channel) return;
+
+  const embed = new EmbedBuilder()
+    .setTitle("🎉 New Verified Coach!")
+    .setColor("Green")
+    .setDescription(`**${coach.username}** has been verified as one of **The Generals**.`)
+    .addFields(
+      { name: "Specialties", value: (coach.specialties || []).join(", ") || "None" },
+      { name: "Weapons", value: (coach.weapons || []).join(", ") || "None" }
+    )
+    .setTimestamp();
+
+  if (coach.banner) embed.setImage(coach.banner);
+
+  channel.send({ embeds: [embed] });
+}
