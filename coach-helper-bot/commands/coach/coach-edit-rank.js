@@ -1,10 +1,16 @@
 import {
   SlashCommandBuilder,
-  EmbedBuilder,
+  EmbedBuilder
 } from "discord.js";
 import fs from "fs";
 
 const filePath = "/data/coaches.json";
+
+function ensureFile() {
+  if (!fs.existsSync(filePath)) {
+    fs.writeFileSync(filePath, JSON.stringify({}));
+  }
+}
 
 export default {
   data: new SlashCommandBuilder()
@@ -17,39 +23,38 @@ export default {
     )
     .addStringOption(option =>
       option.setName("rank")
-        .setDescription("The new rank")
+        .setDescription("New rank")
         .setRequired(true)
     ),
 
   async execute(interaction) {
-    const coachUser = interaction.options.getUser("coach");
-    const newRank = interaction.options.getString("rank");
+    try {
+      ensureFile();
+      const coachUser = interaction.options.getUser("coach");
+      const newRank = interaction.options.getString("rank");
 
-    let coaches = [];
+      const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
 
-    if (fs.existsSync(filePath)) {
-      coaches = JSON.parse(fs.readFileSync(filePath, "utf8"));
+      if (!data[coachUser.id]) {
+        return interaction.reply({
+          content: "❌ That coach is not registered.",
+          ephemeral: true,
+        });
+      }
+
+      data[coachUser.id].rank = newRank;
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+
+      const embed = new EmbedBuilder()
+        .setTitle("Coach Rank Updated")
+        .setDescription(`Rank updated for **${coachUser.username}**`)
+        .addFields({ name: "New Rank", value: newRank })
+        .setColor("Aqua");
+
+      return interaction.reply({ embeds: [embed] });
+    } catch (error) {
+      console.error(error);
+      await interaction.reply("❌ Error updating rank.");
     }
-
-    const coach = coaches.find(c => c.id === coachUser.id);
-
-    if (!coach) {
-      return interaction.reply({
-        content: "❌ That coach is not registered.",
-        ephemeral: true,
-      });
-    }
-
-    coach.rank = newRank;
-
-    fs.writeFileSync(filePath, JSON.stringify(coaches, null, 2));
-
-    const embed = new EmbedBuilder()
-      .setTitle("Coach Rank Updated")
-      .setDescription(`Rank updated for **${coachUser.username}**`)
-      .addFields({ name: "New Rank", value: newRank })
-      .setColor("Blue");
-
-    return interaction.reply({ embeds: [embed] });
   }
 };
