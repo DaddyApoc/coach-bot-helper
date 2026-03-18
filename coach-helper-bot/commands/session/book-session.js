@@ -25,10 +25,40 @@ export default {
         .setDescription("The coach you want to book")
         .setRequired(true)
     )
-    .addStringOption(option =>
-      option.setName("time")
-        .setDescription("When do you want the session? (e.g. 2025-03-18T17:00:00Z)")
+    .addIntegerOption(option =>
+      option.setName("day")
+        .setDescription("Day (1-31)")
         .setRequired(true)
+        .setMinValue(1)
+        .setMaxValue(31)
+    )
+    .addIntegerOption(option =>
+      option.setName("month")
+        .setDescription("Month (1-12)")
+        .setRequired(true)
+        .setMinValue(1)
+        .setMaxValue(12)
+    )
+    .addIntegerOption(option =>
+      option.setName("year")
+        .setDescription("Year (e.g. 2025)")
+        .setRequired(true)
+        .setMinValue(2025)
+        .setMaxValue(2099)
+    )
+    .addIntegerOption(option =>
+      option.setName("hour")
+        .setDescription("Hour (0-23)")
+        .setRequired(true)
+        .setMinValue(0)
+        .setMaxValue(23)
+    )
+    .addIntegerOption(option =>
+      option.setName("minute")
+        .setDescription("Minute (0-59)")
+        .setRequired(true)
+        .setMinValue(0)
+        .setMaxValue(59)
     )
     .addStringOption(option =>
       option.setName("notes")
@@ -41,13 +71,29 @@ export default {
       ensureFiles();
       const coachUser = interaction.options.getUser("coach");
       const studentUser = interaction.user;
-      const time = interaction.options.getString("time");
+      const day = interaction.options.getInteger("day");
+      const month = interaction.options.getInteger("month");
+      const year = interaction.options.getInteger("year");
+      const hour = interaction.options.getInteger("hour");
+      const minute = interaction.options.getInteger("minute");
       const notes = interaction.options.getString("notes") || "None";
 
-      const parsedTime = Date.parse(time);
-      if (isNaN(parsedTime)) {
+      // Create ISO string from components
+      const dateString = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00Z`;
+      const sessionTime = new Date(dateString);
+
+      // Validate date
+      if (isNaN(sessionTime.getTime())) {
         return interaction.reply({
-          content: "❌ Invalid time format. Use an ISO time like `2025-03-18T17:00:00Z`.",
+          content: "❌ Invalid date/time. Please check your inputs.",
+          ephemeral: true
+        });
+      }
+
+      // Check if date is in the past
+      if (sessionTime < new Date()) {
+        return interaction.reply({
+          content: "❌ Session time must be in the future.",
           ephemeral: true
         });
       }
@@ -65,7 +111,7 @@ export default {
 
       const conflict = bookings.find(b =>
         b.coachId === coachUser.id &&
-        b.time === time &&
+        b.sessionTime === dateString &&
         (b.status === "pending" || b.status === "accepted")
       );
 
@@ -82,7 +128,7 @@ export default {
         coachName: coachUser.username,
         studentId: studentUser.id,
         studentName: studentUser.username,
-        time,
+        sessionTime: dateString,
         notes,
         status: "pending",
         reminderSent: false,
@@ -98,7 +144,7 @@ export default {
           .setColor("Blue")
           .addFields(
             { name: "Student", value: studentUser.username },
-            { name: "Time", value: time },
+            { name: "Session Time", value: `<t:${Math.floor(sessionTime.getTime() / 1000)}:F>` },
             { name: "Notes", value: notes },
             { name: "Booking ID", value: booking.id }
           );
@@ -113,7 +159,7 @@ export default {
         .setColor("Green")
         .setDescription(`Your session request has been sent to **${coachUser.username}**.`)
         .addFields(
-          { name: "Time", value: time },
+          { name: "Session Time", value: `<t:${Math.floor(sessionTime.getTime() / 1000)}:F>` },
           { name: "Notes", value: notes },
           { name: "Booking ID", value: booking.id }
         );
