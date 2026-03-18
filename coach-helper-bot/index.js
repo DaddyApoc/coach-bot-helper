@@ -182,3 +182,4 @@ client.on("interactionCreate", async (interaction) => {
     // You can add more modal handlers here for specialties, weapons, etc.
   }
 });
+postNewCoach(client, temp);
