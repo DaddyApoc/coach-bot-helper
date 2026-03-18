@@ -48,3 +48,7 @@ export default {
     });
   },
 };
+
+import { addEarnings } from "../../utils/earnings.js";
+
+addEarnings(session.coachId, session.price, sessionId);
