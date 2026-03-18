@@ -1,0 +1,62 @@
+import {
+  SlashCommandBuilder,
+  EmbedBuilder,
+  PermissionFlagsBits
+} from "discord.js";
+import fs from "fs";
+
+const filePath = "/data/coaches.json";
+
+export default {
+  data: new SlashCommandBuilder()
+    .setName("coach-edit-rating")
+    .setDescription("Admin: Edit a coach's rating manually.")
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .addUserOption(option =>
+      option.setName("coach")
+        .setDescription("The coach to edit")
+        .setRequired(true)
+    )
+    .addNumberOption(option =>
+      option.setName("rating")
+        .setDescription("New rating (1–5)")
+        .setRequired(true)
+    ),
+
+  async execute(interaction) {
+    const coachUser = interaction.options.getUser("coach");
+    const newRating = interaction.options.getNumber("rating");
+
+    if (newRating < 1 || newRating > 5) {
+      return interaction.reply({
+        content: "❌ Rating must be between **1 and 5**.",
+        ephemeral: true,
+      });
+    }
+
+    let coaches = [];
+    if (fs.existsSync(filePath)) {
+      coaches = JSON.parse(fs.readFileSync(filePath, "utf8"));
+    }
+
+    const coach = coaches.find(c => c.id === coachUser.id);
+    if (!coach) {
+      return interaction.reply({
+        content: "❌ That coach is not registered.",
+        ephemeral: true,
+      });
+    }
+
+    coach.rating = newRating;
+
+    fs.writeFileSync(filePath, JSON.stringify(coaches, null, 2));
+
+    const embed = new EmbedBuilder()
+      .setTitle("Coach Rating Updated")
+      .setDescription(`Rating updated for **${coachUser.username}**`)
+      .addFields({ name: "New Rating", value: `${newRating} ⭐` })
+      .setColor("Red");
+
+    return interaction.reply({ embeds: [embed] });
+  }
+};

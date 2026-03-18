@@ -1,0 +1,55 @@
+import {
+  SlashCommandBuilder,
+  EmbedBuilder,
+} from "discord.js";
+import fs from "fs";
+
+const filePath = "/data/coaches.json";
+
+export default {
+  data: new SlashCommandBuilder()
+    .setName("coach-edit-weapons")
+    .setDescription("Edit a coach's weapons.")
+    .addUserOption(option =>
+      option.setName("coach")
+        .setDescription("The coach to edit")
+        .setRequired(true)
+    )
+    .addStringOption(option =>
+      option.setName("weapons")
+        .setDescription("Comma-separated list of weapons")
+        .setRequired(true)
+    ),
+
+  async execute(interaction) {
+    const coachUser = interaction.options.getUser("coach");
+    const newWeapons = interaction.options.getString("weapons");
+
+    let coaches = [];
+
+    if (fs.existsSync(filePath)) {
+      coaches = JSON.parse(fs.readFileSync(filePath, "utf8"));
+    }
+
+    const coach = coaches.find(c => c.id === coachUser.id);
+
+    if (!coach) {
+      return interaction.reply({
+        content: "❌ That coach is not registered.",
+        ephemeral: true,
+      });
+    }
+
+    coach.weapons = newWeapons.split(",").map(w => w.trim());
+
+    fs.writeFileSync(filePath, JSON.stringify(coaches, null, 2));
+
+    const embed = new EmbedBuilder()
+      .setTitle("Coach Weapons Updated")
+      .setDescription(`Weapons updated for **${coachUser.username}**`)
+      .addFields({ name: "New Weapons", value: coach.weapons.join(", ") })
+      .setColor("Purple");
+
+    return interaction.reply({ embeds: [embed] });
+  }
+};

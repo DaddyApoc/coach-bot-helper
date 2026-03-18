@@ -1,0 +1,41 @@
+import {
+  SlashCommandBuilder,
+  EmbedBuilder
+} from "discord.js";
+import fs from "fs";
+
+const bookingsPath = "/data/bookings.json";
+
+export default {
+  data: new SlashCommandBuilder()
+    .setName("my-sessions")
+    .setDescription("View your upcoming and past coaching sessions."),
+
+  async execute(interaction) {
+    const userId = interaction.user.id;
+
+    let bookings = JSON.parse(fs.readFileSync(bookingsPath, "utf8"));
+
+    const mine = bookings.filter(b => b.studentId === userId);
+
+    if (mine.length === 0) {
+      return interaction.reply({
+        content: "📭 You have no sessions.",
+        ephemeral: true
+      });
+    }
+
+    const embed = new EmbedBuilder()
+      .setTitle("📘 Your Coaching Sessions")
+      .setColor("Blue");
+
+    mine.forEach(b => {
+      embed.addFields({
+        name: `${b.time} — ${b.coachName}`,
+        value: `Status: **${b.status}**\nNotes: ${b.notes}`
+      });
+    });
+
+    return interaction.reply({ embeds: [embed], ephemeral: true });
+  }
+};
