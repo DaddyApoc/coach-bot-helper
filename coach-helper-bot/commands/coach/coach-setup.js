@@ -39,3 +39,5 @@ export default {
 
 "verified": false,
 "denied": false
+
+if (typeof temp.suspended === "undefined") temp.suspended = false;
