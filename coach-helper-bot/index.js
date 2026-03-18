@@ -24,7 +24,11 @@ for (const folder of commandFolders) {
   for (const file of commandFiles) {
     const filePath = path.join(commandsPath, file);
     const command = (await import(`file://${filePath}`)).default;
-    client.commands.set(command.data.name, command);
+    
+    // Only register commands that have a data property
+    if (command.data) {
+      client.commands.set(command.data.name, command);
+    }
   }
 }
 
@@ -47,10 +51,3 @@ client.on(Events.InteractionCreate, async interaction => {
 });
 
 client.login(process.env.DISCORD_TOKEN);
-
-import { startSessionReminder } from "./utils/sessionReminder.js";
-
-client.once("ready", () => {
-  console.log("Bot is online!");
-  startSessionReminder(client);
-});
