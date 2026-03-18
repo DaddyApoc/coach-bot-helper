@@ -1,10 +1,16 @@
 import {
   SlashCommandBuilder,
-  EmbedBuilder,
+  EmbedBuilder
 } from "discord.js";
 import fs from "fs";
 
 const filePath = "/data/coaches.json";
+
+function ensureFile() {
+  if (!fs.existsSync(filePath)) {
+    fs.writeFileSync(filePath, JSON.stringify({}));
+  }
+}
 
 export default {
   data: new SlashCommandBuilder()
@@ -17,39 +23,39 @@ export default {
     )
     .addStringOption(option =>
       option.setName("weapons")
-        .setDescription("Comma-separated list of weapons")
+        .setDescription("Weapons (comma-separated)")
         .setRequired(true)
     ),
 
   async execute(interaction) {
-    const coachUser = interaction.options.getUser("coach");
-    const newWeapons = interaction.options.getString("weapons");
+    try {
+      ensureFile();
+      const coachUser = interaction.options.getUser("coach");
+      const weaponsInput = interaction.options.getString("weapons");
+      const weapons = weaponsInput.split(",").map(w => w.trim());
 
-    let coaches = [];
+      const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
 
-    if (fs.existsSync(filePath)) {
-      coaches = JSON.parse(fs.readFileSync(filePath, "utf8"));
+      if (!data[coachUser.id]) {
+        return interaction.reply({
+          content: "❌ That coach is not registered.",
+          ephemeral: true,
+        });
+      }
+
+      data[coachUser.id].weapons = weapons;
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+
+      const embed = new EmbedBuilder()
+        .setTitle("Coach Weapons Updated")
+        .setDescription(`Weapons updated for **${coachUser.username}**`)
+        .addFields({ name: "New Weapons", value: weapons.join(", ") })
+        .setColor("Aqua");
+
+      return interaction.reply({ embeds: [embed] });
+    } catch (error) {
+      console.error(error);
+      await interaction.reply("❌ Error updating weapons.");
     }
-
-    const coach = coaches.find(c => c.id === coachUser.id);
-
-    if (!coach) {
-      return interaction.reply({
-        content: "❌ That coach is not registered.",
-        ephemeral: true,
-      });
-    }
-
-    coach.weapons = newWeapons.split(",").map(w => w.trim());
-
-    fs.writeFileSync(filePath, JSON.stringify(coaches, null, 2));
-
-    const embed = new EmbedBuilder()
-      .setTitle("Coach Weapons Updated")
-      .setDescription(`Weapons updated for **${coachUser.username}**`)
-      .addFields({ name: "New Weapons", value: coach.weapons.join(", ") })
-      .setColor("Purple");
-
-    return interaction.reply({ embeds: [embed] });
   }
 };
