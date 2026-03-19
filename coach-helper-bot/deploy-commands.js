@@ -21,7 +21,7 @@ for (const folder of commandFolders) {
     .readdirSync(folderPath)
     .filter(file => file.endsWith(".js"));
 
-  for (const file of commandFiles) {
+  for (const file of commandFiles) { 
     const filePath = path.join(folderPath, file);
     const command = require(filePath);
 
