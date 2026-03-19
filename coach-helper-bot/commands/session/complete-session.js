@@ -1,81 +1,37 @@
-import { SlashCommandBuilder } from "discord.js";
-import fs from "fs";
-import { addEarnings } from "../../utils/earnings.js";
+const { SlashCommandBuilder } = require("discord.js");
+const fs = require("fs");
 
-const bookingsPath = "data/bookings.json";
-
-function ensureFiles() {
-  if (!fs.existsSync("data")) fs.mkdirSync("data", { recursive: true });
-  if (!fs.existsSync(bookingsPath)) fs.writeFileSync(bookingsPath, JSON.stringify([]));
-}
-
-export default {
+module.exports = {
   data: new SlashCommandBuilder()
     .setName("complete-session")
-    .setDescription("Mark a session as completed.")
-    .addStringOption(option =>
-      option.setName("booking_id")
-        .setDescription("The booking ID to complete.")
+    .setDescription("Mark a session as completed")
+    .addStringOption(opt =>
+      opt.setName("session_id")
+        .setDescription("The session ID")
         .setRequired(true)
-    )
-    .addIntegerOption(option =>
-      option.setName("amount")
-        .setDescription("Earnings amount for this session.") 
-        .setRequired(true)
-        .setMinValue(0)
     ),
 
   async execute(interaction) {
-    ensureFiles();
+    try {
+      const sessionId = interaction.options.getString("session_id");
+      const sessions = JSON.parse(fs.readFileSync("data/sessions.json", "utf8"));
 
-    const coach = interaction.user;
-    const bookingId = interaction.options.getString("booking_id");
-    const amount = interaction.options.getInteger("amount");
+      const session = sessions.find(s => s.id === sessionId);
 
-    let bookings = JSON.parse(fs.readFileSync(bookingsPath, "utf8"));
-    const booking = bookings.find(b => b.id === bookingId);
+      if (!session)
+        return interaction.reply("❌ Session not found.");
 
-    if (!booking) {
-      return interaction.reply({
-        content: "❌ Booking not found.",
-        ephemeral: true
-      });
+      if (session.coach !== interaction.user.id)
+        return interaction.reply("❌ You are not the coach for this session.");
+
+      session.status = "completed";
+
+      fs.writeFileSync("data/sessions.json", JSON.stringify(sessions, null, 2));
+
+      return interaction.reply("✅ Session marked as completed.");
+    } catch (err) {
+      console.error(err);
+      return interaction.reply("❌ Error completing session.");
     }
-
-    if (booking.coachId !== coach.id) {
-      return interaction.reply({
-        content: "❌ You are not the coach for this booking.",
-        ephemeral: true
-      });
-    }
-
-    if (booking.status !== "accepted") {
-      return interaction.reply({
-        content: `❌ Only **accepted** sessions can be completed. Current status: **${booking.status}**.`,
-        ephemeral: true
-      });
-    }
-
-    const now = new Date();
-    const sessionTime = new Date(booking.sessionTime);
-
-    if (sessionTime > now) {
-      return interaction.reply({
-        content: "❌ You cannot complete a session that hasn't happened yet.",
-        ephemeral: true
-      });
-    }
-
-    booking.status = "completed";
-    bookings = bookings.map(b => (b.id === booking.id ? booking : b));
-    fs.writeFileSync(bookingsPath, JSON.stringify(bookings, null, 2));
-
-    // Add earnings
-    addEarnings(coach.id, amount);
-
-    return interaction.reply({
-      content: `✅ Session **${bookingId}** marked as completed. Earnings added: **$${amount}**.`,
-      ephemeral: true
-    });
   }
 };
