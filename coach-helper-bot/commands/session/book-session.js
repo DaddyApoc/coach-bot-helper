@@ -3,7 +3,7 @@ import {
   EmbedBuilder
 } from "discord.js";
 import fs from "fs";
-
+ 
 const bookingsPath = "data/bookings.json";
 const coachesPath = "data/coaches.json";
 
