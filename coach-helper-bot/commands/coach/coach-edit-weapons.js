@@ -4,11 +4,12 @@ import {
 } from "discord.js";
 import fs from "fs";
 
-const filePath = "/data/coaches.json";
+const filePath = "data/coaches.json";
 
 function ensureFile() {
+  if (!fs.existsSync("data")) fs.mkdirSync("data", { recursive: true });
   if (!fs.existsSync(filePath)) {
-    fs.writeFileSync(filePath, JSON.stringify({}));
+    fs.writeFileSync(filePath, JSON.stringify([]));
   }
 }
 
@@ -34,17 +35,18 @@ export default {
       const weaponsInput = interaction.options.getString("weapons");
       const weapons = weaponsInput.split(",").map(w => w.trim());
 
-      const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
+      const coaches = JSON.parse(fs.readFileSync(filePath, "utf8"));
+      const coach = coaches.find(c => c.id === coachUser.id);
 
-      if (!data[coachUser.id]) {
+      if (!coach) {
         return interaction.reply({
           content: "❌ That coach is not registered.",
           ephemeral: true,
         });
       }
 
-      data[coachUser.id].weapons = weapons;
-      fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+      coach.weapons = weapons;
+      fs.writeFileSync(filePath, JSON.stringify(coaches, null, 2));
 
       const embed = new EmbedBuilder()
         .setTitle("Coach Weapons Updated")
