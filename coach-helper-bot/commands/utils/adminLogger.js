@@ -1,24 +1,22 @@
 import fs from "fs";
-import { EmbedBuilder } from "discord.js";
 
-const adminConfigPath = "data/adminConfig.json";
+const adminLogPath = "/data/admin-events.json";
 
-export function getLogChannel(client) {
-  if (!fs.existsSync(adminConfigPath)) return null;
-  const config = JSON.parse(fs.readFileSync(adminConfigPath, "utf8"));
-  if (!config.logChannel) return null;
-  return client.channels.cache.get(config.logChannel);
+function ensureFile() {
+  if (!fs.existsSync(adminLogPath)) {
+    fs.writeFileSync(adminLogPath, JSON.stringify([]));
+  }
 }
 
-export async function logAdminEvent(client, title, description, color = "Red") {
-  const channel = getLogChannel(client);
-  if (!channel) return;
-
-  const embed = new EmbedBuilder()
-    .setTitle(title)
-    .setDescription(description)
-    .setColor(color)
-    .setTimestamp();
-
-  channel.send({ embeds: [embed] });
+export function logAdminEvent(client, title, description) {
+  ensureFile();
+  const logs = JSON.parse(fs.readFileSync(adminLogPath, "utf8"));
+  
+  logs.push({
+    title,
+    description,
+    timestamp: new Date().toISOString()
+  });
+  
+  fs.writeFileSync(adminLogPath, JSON.stringify(logs, null, 2));
 }
