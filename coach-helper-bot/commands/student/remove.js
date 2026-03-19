@@ -12,7 +12,7 @@ module.exports = {
     ),
 
   async execute(interaction) {
-    try {
+    try { 
       const index = interaction.options.getInteger("index") - 1;
 
       const file = "data/progress.json";
