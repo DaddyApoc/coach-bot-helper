@@ -45,6 +45,17 @@ export function saveSession(sessionId, sessionData) {
   saveSessions(sessions);
 }
 
+// ⭐ Add missing function: update only the status of a session
+export function updateSessionStatus(sessionId, newStatus) {
+  const sessions = loadSessions();
+  if (!sessions[sessionId]) return null;
+
+  sessions[sessionId].status = newStatus;
+  saveSessions(sessions);
+
+  return sessions[sessionId];
+}
+
 // Get all sessions for a specific user
 export function getUserSessions(userId) {
   const sessions = loadSessions();
