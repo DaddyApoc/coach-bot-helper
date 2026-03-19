@@ -20,7 +20,7 @@ export default {
     )
     .addIntegerOption(option =>
       option.setName("amount")
-        .setDescription("Earnings amount for this session.")
+        .setDescription("Earnings amount for this session.") 
         .setRequired(true)
         .setMinValue(0)
     ),
