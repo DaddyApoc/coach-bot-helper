@@ -9,7 +9,7 @@ const filePath = "/data/coaches.json";
 function ensureFile() {
   if (!fs.existsSync(filePath)) {
     fs.writeFileSync(filePath, JSON.stringify({}));
-  }
+  } 
 }
 
 export default {
