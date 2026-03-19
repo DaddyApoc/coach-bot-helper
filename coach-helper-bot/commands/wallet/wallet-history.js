@@ -8,7 +8,7 @@ module.exports = {
 
   async execute(interaction) {
     try {
-      const wallet = getWallet(interaction.user.id);
+      const wallet = getWallet(interaction.user.id); 
 
       if (!wallet.history || wallet.history.length === 0) {
         return interaction.reply("📭 Your wallet has no transaction history.");
