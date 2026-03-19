@@ -11,7 +11,7 @@ module.exports = {
       const file = "data/progress.json";
       if (!fs.existsSync(file)) fs.writeFileSync(file, JSON.stringify([]));
 
-      const progress = JSON.parse(fs.readFileSync(file, "utf8"));
+      const progress = JSON.parse(fs.readFileSync(file, "utf8")); 
       const entries = progress.filter(p => p.studentId === interaction.user.id);
 
       if (entries.length === 0) {
