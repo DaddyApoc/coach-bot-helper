@@ -7,7 +7,7 @@ module.exports = {
     .setDescription("Deduct credits from a user's wallet (Admin only)")
     .addUserOption(option =>
       option.setName("user")
-        .setDescription("User to deduct from")
+        .setDescription("User to deduct from") 
         .setRequired(true)
     )
     .addIntegerOption(option =>
