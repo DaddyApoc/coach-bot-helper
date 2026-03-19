@@ -1,6 +1,7 @@
 import { SlashCommandBuilder } from "discord.js";
 import { getWallet, deductFromWallet } from "../../utils/wallet.js";
-import { createSession } from "../../utils/sessions.js";
+import { createSession, getUserSessions } from "../../utils/sessions.js";
+import { flagUser } from "../../utils/admin.js";
 
 export default {
   data: new SlashCommandBuilder()
@@ -40,8 +41,17 @@ export default {
       });
     }
 
-    deductFromWallet(studentId, price);
+    // FRAUD CHECK: too many active sessions
+    const sessions = getUserSessions(studentId, "student");
+    const activeCount = sessions.filter(
+      s => s.status !== "completed" && s.status !== "cancelled"
+    ).length;
 
+    if (activeCount >= 5) {
+      flagUser(studentId, "Many active sessions without completion", 10);
+    }
+
+    deductFromWallet(studentId, price);
     const session = createSession(studentId, coach.id, price);
 
     await interaction.reply({
@@ -50,11 +60,3 @@ export default {
     });
   },
 };
-const activeCount = sessions.filter(
-  s => s.studentId === studentId && s.status !== "completed"
-).length;import { flagUser } from "../../utils/admin.js"; // at the top
-
-// FRAUD CHECK: too many active sessions
-if (activeCount >= 5) {
-  flagUser(studentId, "Many active sessions without completion", 10);
-}
