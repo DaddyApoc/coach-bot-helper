@@ -5,7 +5,7 @@ require("dotenv").config();
 
 const clientId = process.env.CLIENT_ID;
 const guildId = process.env.GUILD_ID;
-const token = process.env.TOKEN;
+const token = process.env.DISCORD_TOKEN; // IMPORTANT FIX
 
 const commands = [];
 const foldersPath = path.join(__dirname, "commands");
@@ -30,4 +30,39 @@ for (const folder of commandFolders) {
         const name = command.data.name;
 
         if (names.has(name)) {
-           
+            console.log(`[DUPLICATE BLOCKED] Command name already exists: ${name}`);
+            continue;
+        }
+
+        names.add(name);
+        commands.push(command.data.toJSON());
+    }
+}
+
+const rest = new REST().setToken(token);
+
+(async () => {
+    try {
+        console.log("Wiping ALL global commands...");
+
+        // TEMP: wipe all global commands
+        await rest.put(
+            Routes.applicationCommands(clientId),
+            { body: [] }
+        );
+
+        console.log("Global commands wiped successfully.");
+
+        console.log(`Registering ${commands.length} guild commands...`);
+
+        // Register guild commands (instant)
+        await rest.put(
+            Routes.applicationGuildCommands(clientId, guildId),
+            { body: commands }
+        );
+
+        console.log("Guild commands updated successfully.");
+    } catch (error) {
+        console.error(error);
+    }
+})();
