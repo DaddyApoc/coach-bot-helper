@@ -2,7 +2,7 @@ const fs = require("fs");
 const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require("discord.js");
 const generateProfilePreview = require("../utils/coachProfilePreview");
 
-module.exports = async function handleCoachSetupButtons(interaction) {
+module.exports = async function handleCoachSetupButtons(interaction) { 
   if (!interaction.isButton()) return;
 
   const id = interaction.customId;
