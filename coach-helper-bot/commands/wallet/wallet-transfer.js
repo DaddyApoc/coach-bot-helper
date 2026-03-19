@@ -1,7 +1,7 @@
 const { SlashCommandBuilder } = require("discord.js");
 const { getWallet, addToWallet, deductFromWallet } = require("../../utils/wallet");
 
-module.exports = {
+module.exports = { 
   data: new SlashCommandBuilder()
     .setName("wallet-transfer")
     .setDescription("Transfer credits to another user")
