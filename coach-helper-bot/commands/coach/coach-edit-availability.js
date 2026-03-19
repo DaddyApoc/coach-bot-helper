@@ -1,62 +1,35 @@
-import {
-  SlashCommandBuilder,
-  EmbedBuilder
-} from "discord.js";
-import fs from "fs";
+const { SlashCommandBuilder } = require("discord.js");
+const fs = require("fs");
 
-const filePath = "data/coaches.json";
-
-function ensureFile() {
-  if (!fs.existsSync("data")) fs.mkdirSync("data", { recursive: true });
-  if (!fs.existsSync(filePath)) {
-    fs.writeFileSync(filePath, JSON.stringify([]));
-  }
-}
-
-export default {
+module.exports = {
   data: new SlashCommandBuilder()
     .setName("coach-edit-availability")
-    .setDescription("Edit a coach's availability.")
-    .addUserOption(option =>
-      option.setName("coach")
-        .setDescription("The coach to edit")
-        .setRequired(true)
-    )
+    .setDescription("Update your availability")
     .addStringOption(option =>
       option.setName("availability")
-        .setDescription("New availability (Online, Offline, Busy, etc.)")
+        .setDescription("Your availability (e.g. Weekdays 3-8 PM)")
         .setRequired(true)
     ),
 
   async execute(interaction) {
     try {
-      ensureFile();
-      const coachUser = interaction.options.getUser("coach");
-      const newAvailability = interaction.options.getString("availability");
+      const availability = interaction.options.getString("availability");
+      const coaches = JSON.parse(fs.readFileSync("data/coaches.json", "utf8"));
 
-      const coaches = JSON.parse(fs.readFileSync(filePath, "utf8"));
-      const coach = coaches.find(c => c.id === coachUser.id);
+      const coach = coaches.find(c => c.id === interaction.user.id);
+      if (!coach) return interaction.reply("❌ You are not registered as a coach.");
 
-      if (!coach) {
-        return interaction.reply({
-          content: "❌ That coach is not registered.",
-          ephemeral: true,
-        });
-      }
+      coach.availability = availability;
 
-      coach.availability = newAvailability;
-      fs.writeFileSync(filePath, JSON.stringify(coaches, null, 2));
+      fs.writeFileSync("data/coaches.json", JSON.stringify(coaches, null, 2));
 
-      const embed = new EmbedBuilder()
-        .setTitle("Coach Availability Updated")
-        .setDescription(`Availability updated for **${coachUser.username}**`)
-        .addFields({ name: "New Availability", value: newAvailability })
-        .setColor("Aqua");
-
-      return interaction.reply({ embeds: [embed] });
-    } catch (error) {
-      console.error(error);
+      await interaction.reply(`📅 Availability updated to: **${availability}**`);
+    } catch (err) {
+      console.error(err);
       await interaction.reply("❌ Error updating availability.");
+    }
+  }
+};
     }
   }
 };
