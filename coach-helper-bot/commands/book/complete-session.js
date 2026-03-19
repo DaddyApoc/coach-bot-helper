@@ -1,5 +1,5 @@
 import { SlashCommandBuilder } from "discord.js";
-import { getSession, updateSession } from "../../utils/sessions.js";
+import { getSession, updateSessionStatus } from "../../utils/sessions.js";
 import { addEarnings } from "../../utils/earnings.js";
 
 export default {
@@ -38,7 +38,7 @@ export default {
       });
     }
 
-    updateSession(sessionId, { status: "completed" });
+    updateSessionStatus(sessionId, "completed");
 
     addEarnings(session.coachId, session.price, sessionId);
 
@@ -48,7 +48,3 @@ export default {
     });
   },
 };
-
-import { addEarnings } from "../../utils/earnings.js";
-
-addEarnings(session.coachId, session.price, sessionId);
