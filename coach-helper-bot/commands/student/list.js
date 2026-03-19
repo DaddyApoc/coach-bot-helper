@@ -19,7 +19,7 @@ module.exports = {
     try {
       const type = interaction.options.getString("type");
 
-      if (type === "students") {
+      if (type === "students") { 
         const coaches = JSON.parse(fs.readFileSync("data/coaches.json", "utf8"));
         const embed = new EmbedBuilder()
           .setTitle("🎓 Students")
