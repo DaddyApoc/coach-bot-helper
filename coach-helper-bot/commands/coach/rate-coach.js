@@ -4,8 +4,8 @@ import {
 } from "discord.js";
 import fs from "fs";
 
-const feedbackPath = "/data/feedback.json";
-const coachesPath = "/data/coaches.json";
+const feedbackPath = "data/feedback.json";
+const coachesPath = "data/coaches.json";
 
 export default {
   data: new SlashCommandBuilder()
@@ -39,13 +39,30 @@ export default {
     const comment = interaction.options.getString("comment") || "No comment";
     const tags = interaction.options.getString("tags")?.split(",").map(t => t.trim()) || [];
 
+    // Validate rating
     if (rating < 1 || rating > 5) {
-      return interaction.reply({ content: "❌ Rating must be between 1 and 5.", ephemeral: true });
+      return interaction.reply({
+        content: "❌ Rating must be between 1 and 5.",
+        ephemeral: true
+      });
     }
 
+    // Load JSON data
     let feedback = JSON.parse(fs.readFileSync(feedbackPath, "utf8"));
     let coaches = JSON.parse(fs.readFileSync(coachesPath, "utf8"));
 
+    // Find coach entry
+    const coach = coaches.find(c => c.id === coachUser.id);
+
+    // Suspension check (correct location)
+    if (coach?.suspended) {
+      return interaction.reply({
+        content: "⛔ This coach is suspended and cannot be rated.",
+        ephemeral: true
+      });
+    }
+
+    // Create feedback entry
     const entry = {
       id: Date.now().toString(),
       coachId: coachUser.id,
@@ -61,13 +78,13 @@ export default {
     feedback.push(entry);
 
     // Update coach rating
-    const coach = coaches.find(c => c.id === coachUser.id);
     if (coach) {
       const coachFeedback = feedback.filter(f => f.coachId === coachUser.id);
       const avg = coachFeedback.reduce((a, b) => a + b.rating, 0) / coachFeedback.length;
       coach.rating = Number(avg.toFixed(2));
     }
 
+    // Save updated files
     fs.writeFileSync(feedbackPath, JSON.stringify(feedback, null, 2));
     fs.writeFileSync(coachesPath, JSON.stringify(coaches, null, 2));
 
@@ -77,10 +94,3 @@ export default {
     });
   }
 };
-
-if (coach.suspended) {
-  return interaction.reply({
-    content: "⛔ This coach is suspended and cannot be booked or viewed.",
-    ephemeral: true
-  });
-}
