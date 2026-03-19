@@ -11,7 +11,7 @@ function ensureFile() {
     fs.writeFileSync(bookingsPath, JSON.stringify([]));
   }
 }
-
+ 
 export default {
   data: new SlashCommandBuilder()
     .setName("coach-decline")
