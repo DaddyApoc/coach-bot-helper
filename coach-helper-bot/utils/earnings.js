@@ -53,6 +53,31 @@ export function addEarnings(coachId, amount) {
   return earnings[coachId];
 }
 
+// Deduct earnings (admin adjustment)
+export function deductEarnings(coachId, amount) {
+  const earnings = loadEarnings();
+
+  if (!earnings[coachId]) {
+    earnings[coachId] = {
+      totalEarned: 0,
+      pendingPayout: 0,
+      payoutHistory: []
+    };
+  }
+
+  earnings[coachId].totalEarned = Math.max(0, earnings[coachId].totalEarned - amount);
+  earnings[coachId].pendingPayout = Math.max(0, earnings[coachId].pendingPayout - amount);
+
+  earnings[coachId].payoutHistory.push({
+    type: "adjustment",
+    amount: -amount,
+    date: new Date().toISOString()
+  });
+
+  saveEarnings(earnings);
+  return earnings[coachId];
+}
+
 // Mark payout as completed
 export function payoutCoach(coachId, amount) {
   const earnings = loadEarnings();
@@ -62,6 +87,7 @@ export function payoutCoach(coachId, amount) {
   earnings[coachId].pendingPayout -= amount;
 
   earnings[coachId].payoutHistory.push({
+    type: "payout",
     amount,
     date: new Date().toISOString()
   });
