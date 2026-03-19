@@ -4,7 +4,7 @@ const fs = require("fs");
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("coach-feedback")
-    .setDescription("Leave feedback for a coach")
+    .setDescription("Leave feedback for a coach") 
     .addUserOption(option =>
       option.setName("coach")
         .setDescription("Coach to review")
