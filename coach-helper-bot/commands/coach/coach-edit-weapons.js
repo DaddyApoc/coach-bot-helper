@@ -1,87 +1,31 @@
-import {
-  SlashCommandBuilder,
-  EmbedBuilder
-} from "discord.js";
-import fs from "fs";
+const { SlashCommandBuilder } = require("discord.js");
+const fs = require("fs");
 
-const filePath = "data/coaches.json";
-
-// ⭐ Bulletproof ensureFile()
-function ensureFile() {
-  // Make sure /data folder exists
-  if (!fs.existsSync("data")) {
-    fs.mkdirSync("data", { recursive: true });
-  }
-
-  // If file doesn't exist, create it with []
-  if (!fs.existsSync(filePath)) {
-    fs.writeFileSync(filePath, JSON.stringify([]));
-    return;
-  }
-
-  // Read file content
-  const raw = fs.readFileSync(filePath, "utf8").trim();
-
-  // If file is empty, fix it
-  if (!raw) {
-    fs.writeFileSync(filePath, JSON.stringify([]));
-    return;
-  }
-
-  // If file is corrupted, fix it
-  try {
-    JSON.parse(raw); // test parse
-  } catch {
-    console.log("⚠️ coaches.json was corrupted — resetting it.");
-    fs.writeFileSync(filePath, JSON.stringify([]));
-  }
-}
-
-export default {
+module.exports = {
   data: new SlashCommandBuilder()
     .setName("coach-edit-weapons")
-    .setDescription("Edit a coach's weapons.")
-    .addUserOption(option =>
-      option.setName("coach")
-        .setDescription("The coach to edit")
-        .setRequired(true)
-    )
+    .setDescription("Update your weapon specialties")
     .addStringOption(option =>
       option.setName("weapons")
-        .setDescription("Weapons (comma-separated)")
+        .setDescription("Comma-separated weapons")
         .setRequired(true)
     ),
 
   async execute(interaction) {
     try {
-      ensureFile();
+      const weapons = interaction.options.getString("weapons").split(",").map(w => w.trim());
+      const coaches = JSON.parse(fs.readFileSync("data/coaches.json", "utf8"));
 
-      const coachUser = interaction.options.getUser("coach");
-      const weaponsInput = interaction.options.getString("weapons");
-      const weapons = weaponsInput.split(",").map(w => w.trim());
-
-      const coaches = JSON.parse(fs.readFileSync(filePath, "utf8"));
-      const coach = coaches.find(c => c.id === coachUser.id);
-
-      if (!coach) {
-        return interaction.reply({
-          content: "❌ That coach is not registered.",
-          ephemeral: true,
-        });
-      }
+      const coach = coaches.find(c => c.id === interaction.user.id);
+      if (!coach) return interaction.reply("❌ You are not registered as a coach.");
 
       coach.weapons = weapons;
-      fs.writeFileSync(filePath, JSON.stringify(coaches, null, 2));
 
-      const embed = new EmbedBuilder()
-        .setTitle("Coach Weapons Updated")
-        .setDescription(`Weapons updated for **${coachUser.username}**`)
-        .addFields({ name: "New Weapons", value: weapons.join(", ") })
-        .setColor("Aqua");
+      fs.writeFileSync("data/coaches.json", JSON.stringify(coaches, null, 2));
 
-      return interaction.reply({ embeds: [embed] });
-    } catch (error) {
-      console.error(error);
+      await interaction.reply(`⚔️ Weapon specialties updated.`);
+    } catch (err) {
+      console.error(err);
       await interaction.reply("❌ Error updating weapons.");
     }
   }
