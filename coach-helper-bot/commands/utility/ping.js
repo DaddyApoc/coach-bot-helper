@@ -11,7 +11,7 @@ module.exports = {
       const latency = sent.createdTimestamp - interaction.createdTimestamp;
 
       await interaction.editReply(`🏓 Pong! Bot Latency: **${latency}ms**`);
-    } catch (err) {
+    } catch (err) { 
       console.error(err);
       await interaction.reply("❌ Error processing ping.");
     }
