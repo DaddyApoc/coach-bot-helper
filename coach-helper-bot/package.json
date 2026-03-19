@@ -95,4 +95,4 @@ const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
       console.log(JSON.stringify(error.rawError.errors, null, 2));
     }
   }
-})();
+})(); 
