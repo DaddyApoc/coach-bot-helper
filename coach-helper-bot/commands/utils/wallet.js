@@ -1,8 +1,9 @@
 import fs from "fs";
 
-const walletPath = "/data/wallets.json";
+const walletPath = "data/wallets.json";
 
 function ensureFile() {
+  if (!fs.existsSync("data")) fs.mkdirSync("data", { recursive: true });
   if (!fs.existsSync(walletPath)) {
     fs.writeFileSync(walletPath, JSON.stringify({}));
   }
@@ -11,7 +12,7 @@ function ensureFile() {
 export function getWallet(userId) {
   ensureFile();
   const data = JSON.parse(fs.readFileSync(walletPath, "utf8"));
-  return data[userId]?.balance || 0;
+  return data[userId] || { balance: 0 };
 }
 
 export function addToWallet(userId, amount) {
