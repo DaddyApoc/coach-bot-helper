@@ -52,4 +52,9 @@ export default {
 };
 const activeCount = sessions.filter(
   s => s.studentId === studentId && s.status !== "completed"
-).length;
+).length;import { flagUser } from "../../utils/admin.js"; // at the top
+
+// FRAUD CHECK: too many active sessions
+if (activeCount >= 5) {
+  flagUser(studentId, "Many active sessions without completion", 10);
+}
