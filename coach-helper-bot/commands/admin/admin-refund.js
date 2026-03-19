@@ -1,34 +1,35 @@
-import { SlashCommandBuilder, PermissionFlagsBits } from "discord.js";
-import { addToWallet } from "../../utils/wallet.js";
-import { logRefund, flagUser } from "../../utils/admin.js";
+const { SlashCommandBuilder } = require("discord.js");
+const fs = require("fs");
 
-export default {
+module.exports = {
   data: new SlashCommandBuilder()
     .setName("admin-refund")
-    .setDescription("Refund a user (admin only)")
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .setDescription("Refund a user's session")
     .addUserOption(option =>
-      option.setName("user").setDescription("User to refund").setRequired(true)
+      option.setName("user")
+        .setDescription("User to refund")
+        .setRequired(true)
     )
     .addIntegerOption(option =>
-      option.setName("amount").setDescription("Refund amount").setRequired(true)
-    )
-    .addStringOption(option =>
-      option.setName("reason").setDescription("Reason for refund").setRequired(true)
+      option.setName("amount")
+        .setDescription("Amount to refund")
+        .setRequired(true)
     ),
 
   async execute(interaction) {
-    const user = interaction.options.getUser("user");
-    const amount = interaction.options.getInteger("amount");
-    const reason = interaction.options.getString("reason");
+    try {
+      const user = interaction.options.getUser("user");
+      const amount = interaction.options.getInteger("amount");
 
-    addToWallet(user.id, amount);
-    logRefund(user.id, amount, reason);
-    flagUser(user.id, `Refund issued: $${amount}`, 10);
+      const wallets = JSON.parse(fs.readFileSync("data/wallets.json", "utf8"));
+      wallets[user.id] = (wallets[user.id] || 0) + amount;
 
-    await interaction.reply({
-      content: `Refunded **$${amount}** to **${user.username}**.\nReason: ${reason}`,
-      ephemeral: true,
-    });
-  },
+      fs.writeFileSync("data/wallets.json", JSON.stringify(wallets, null, 2));
+
+      await interaction.reply(`💵 Refunded **${amount}** credits to **${user.username}**.`);
+    } catch (err) {
+      console.error(err);
+      await interaction.reply("❌ Error processing refund.");
+    }
+  }
 };
