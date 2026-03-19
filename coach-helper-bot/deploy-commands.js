@@ -18,8 +18,7 @@ for (const folder of commandFolders) {
   for (const file of commandFiles) {
     const filePath = path.join(commandsPath, file);
     const command = (await import(`file://${filePath}`)).default;
-    
-    // Skip if data is null (utility files)
+
     if (command.data) {
       commands.push(command.data.toJSON());
     }
@@ -30,14 +29,14 @@ const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);
 
 (async () => {
   try {
-    console.log("🔁 Refreshing application (/) commands...");
+    console.log("🔁 Refreshing guild (/) commands...");
 
     await rest.put(
-      Routes.applicationCommands(process.env.CLIENT_ID),
+      Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
       { body: commands }
     );
 
-    console.log("✅ Successfully reloaded application (/) commands.");
+    console.log("✅ Successfully reloaded guild (/) commands.");
   } catch (error) {
     console.error(error);
   }
