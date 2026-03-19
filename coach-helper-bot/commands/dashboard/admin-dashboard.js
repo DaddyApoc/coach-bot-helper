@@ -1,64 +1,82 @@
-import { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } from "discord.js";
+import { SlashCommandBuilder, EmbedBuilder } from "discord.js";
 import fs from "fs";
-import path from "path";
-import { loadSessions } from "../../utils/sessions.js";
 import { loadEarnings } from "../../utils/earnings.js";
+import { getAdminLogs } from "../../utils/admin.js";
+
+const bookingsPath = "data/bookings.json";
+const coachesPath = "data/coaches.json";
+
+function ensureFiles() {
+  if (!fs.existsSync("data")) fs.mkdirSync("data", { recursive: true });
+  if (!fs.existsSync(bookingsPath)) fs.writeFileSync(bookingsPath, JSON.stringify([]));
+  if (!fs.existsSync(coachesPath)) fs.writeFileSync(coachesPath, JSON.stringify({}));
+}
 
 export default {
   data: new SlashCommandBuilder()
     .setName("admin-dashboard")
-    .setDescription("View the admin monetization dashboard")
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    .setDescription("View platform-wide stats (admin only)."),
 
   async execute(interaction) {
-    const adminPath = path.join(process.cwd(), "data", "admin.json");
-    const admin = JSON.parse(fs.readFileSync(adminPath, "utf8"));
+    if (!interaction.memberPermissions.has("Administrator")) {
+      return interaction.reply({
+        content: "❌ You do not have permission to use this command.",
+        ephemeral: true
+      });
+    }
 
-    const sessions = Object.values(loadSessions());
+    ensureFiles();
+
+    const bookings = JSON.parse(fs.readFileSync(bookingsPath, "utf8"));
+    const coaches = JSON.parse(fs.readFileSync(coachesPath, "utf8"));
     const earnings = loadEarnings();
+    const logs = getAdminLogs();
 
-    const totalRevenue = Object.values(earnings).reduce(
-      (sum, e) => sum + e.totalEarned,
+    const totalCoaches = Object.keys(coaches).length;
+    const totalBookings = bookings.length;
+    const pendingBookings = bookings.filter(b => b.status === "pending").length;
+    const completedBookings = bookings.filter(b => b.status === "completed").length;
+
+    const totalEarned = Object.values(earnings).reduce(
+      (sum, e) => sum + (e.totalEarned || 0),
+      0
+    );
+    const totalPendingPayout = Object.values(earnings).reduce(
+      (sum, e) => sum + (e.pendingPayout || 0),
       0
     );
 
-    const totalPending = Object.values(earnings).reduce(
-      (sum, e) => sum + e.pendingPayout,
-      0
-    );
+    const recentLogs = logs.slice(-5).reverse();
+    const logsText = recentLogs.length
+      ? recentLogs.map(l =>
+          `• [${l.type}] ${l.reason || ""} ${l.amount ? `($${l.amount})` : ""} — ${l.timestamp}`
+        ).join("\n")
+      : "No recent admin actions.";
 
     const embed = new EmbedBuilder()
-      .setTitle("Admin Monetization Dashboard")
+      .setTitle("🛡️ Admin Dashboard")
       .setColor("Purple")
       .addFields(
         {
-          name: "Total Platform Revenue",
-          value: `$${totalRevenue}`,
-          inline: true,
+          name: "Coaches",
+          value: `**Total Coaches:** ${totalCoaches}`,
+          inline: true
         },
         {
-          name: "Pending Payouts",
-          value: `$${totalPending}`,
-          inline: true,
+          name: "Bookings",
+          value: `**Total:** ${totalBookings}\n**Pending:** ${pendingBookings}\n**Completed:** ${completedBookings}`,
+          inline: true
         },
         {
-          name: "Total Sessions",
-          value: `${sessions.length}`,
-          inline: true,
+          name: "Earnings",
+          value: `**Total Earned:** $${totalEarned}\n**Pending Payout:** $${totalPendingPayout}`
         },
         {
-          name: "Refunds Logged",
-          value: `${admin.refunds.length}`,
-          inline: true,
-        },
-        {
-          name: "Adjustments Logged",
-          value: `${admin.adjustments.length}`,
-          inline: true,
+          name: "Recent Admin Actions",
+          value: logsText
         }
-      )
-      .setTimestamp();
+      );
 
-    await interaction.reply({ embeds: [embed], ephemeral: true });
-  },
+    return interaction.reply({ embeds: [embed], ephemeral: true });
+  }
 };
