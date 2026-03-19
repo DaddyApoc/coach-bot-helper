@@ -4,7 +4,7 @@ const fs = require("fs");
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("coach-profile")
-    .setDescription("View your coach profile"),
+    .setDescription("View your coach profile"), 
 
   async execute(interaction) {
     try {
