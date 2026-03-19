@@ -1,44 +1,39 @@
-import { SlashCommandBuilder, PermissionFlagsBits } from "discord.js";
-import { getWallet, addToWallet, deductFromWallet } from "../../utils/wallet.js";
-import { logAdjustment } from "../../utils/admin.js";
+const { SlashCommandBuilder } = require("discord.js");
+const fs = require("fs");
 
-export default {
+const filePath = "data/wallets.json";
+
+module.exports = {
   data: new SlashCommandBuilder()
     .setName("admin-adjust-wallet")
-    .setDescription("Adjust a user's wallet balance (admin only)")
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .setDescription("Adjust a user's wallet balance")
     .addUserOption(option =>
-      option.setName("user").setDescription("User to adjust").setRequired(true)
+      option.setName("user")
+        .setDescription("User to adjust")
+        .setRequired(true)
     )
     .addIntegerOption(option =>
-      option.setName("amount").setDescription("Amount to adjust (+/-)").setRequired(true)
-    )
-    .addStringOption(option =>
-      option.setName("reason").setDescription("Reason for adjustment").setRequired(true)
+      option.setName("amount")
+        .setDescription("Amount to adjust (+/-)")
+        .setRequired(true)
     ),
 
   async execute(interaction) {
-    const user = interaction.options.getUser("user");
-    const amount = interaction.options.getInteger("amount");
-    const reason = interaction.options.getString("reason");
+    try {
+      const user = interaction.options.getUser("user");
+      const amount = interaction.options.getInteger("amount");
 
-    if (amount > 0) {
-      addToWallet(user.id, amount);
-    } else {
-      const success = deductFromWallet(user.id, Math.abs(amount));
-      if (!success) {
-        return interaction.reply({
-          content: "User does not have enough balance.",
-          ephemeral: true,
-        });
-      }
+      if (!fs.existsSync(filePath)) fs.writeFileSync(filePath, JSON.stringify({}));
+
+      const wallets = JSON.parse(fs.readFileSync(filePath, "utf8"));
+      wallets[user.id] = (wallets[user.id] || 0) + amount;
+
+      fs.writeFileSync(filePath, JSON.stringify(wallets, null, 2));
+
+      await interaction.reply(`💳 Adjusted **${user.username}** by **${amount}** credits.`);
+    } catch (err) {
+      console.error(err);
+      await interaction.reply("❌ Error adjusting wallet.");
     }
-
-    logAdjustment(user.id, amount, reason);
-
-    await interaction.reply({
-      content: `Adjusted **$${amount}** for **${user.username}**.\nReason: ${reason}`,
-      ephemeral: true,
-    });
-  },
+  }
 };
