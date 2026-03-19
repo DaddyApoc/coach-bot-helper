@@ -4,7 +4,7 @@ import bodyParser from "body-parser";
 import Stripe from "stripe";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-const app = express();
+const app = express(); 
 
 // Normal JSON routes
 app.use(express.json());
