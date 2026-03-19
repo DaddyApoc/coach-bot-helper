@@ -28,5 +28,5 @@ module.exports = {
       console.error(err);
       await interaction.reply("❌ Error updating rank.");
     }
-  }
+  } 
 };
