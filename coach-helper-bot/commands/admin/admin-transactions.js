@@ -1,35 +1,30 @@
-import { SlashCommandBuilder, PermissionFlagsBits } from "discord.js";
-import fs from "fs";
-import path from "path";
+const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
+const fs = require("fs");
 
-export default {
+module.exports = {
   data: new SlashCommandBuilder()
     .setName("admin-transactions")
-    .setDescription("View all admin transactions")
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    .setDescription("View all wallet transactions"),
 
   async execute(interaction) {
-    const filePath = path.join(process.cwd(), "data", "admin.json");
-    const admin = JSON.parse(fs.readFileSync(filePath, "utf8"));
+    try {
+      const history = JSON.parse(fs.readFileSync("data/transactions.json", "utf8"));
 
-    const refunds = admin.refunds.slice(-10).reverse();
-    const adjustments = admin.adjustments.slice(-10).reverse();
+      const embed = new EmbedBuilder()
+        .setTitle("💳 Transaction History")
+        .setColor("Green");
 
-    let msg = "**Recent Admin Transactions**\n\n";
+      history.forEach((tx, i) => {
+        embed.addFields({
+          name: `Transaction ${i + 1}`,
+          value: `**User:** <@${tx.userId}>\n**Amount:** ${tx.amount}\n**Type:** ${tx.type}\n**Date:** ${tx.date}`
+        });
+      });
 
-    msg += "**Refunds:**\n";
-    msg += refunds.length
-      ? refunds.map(r => `• $${r.amount} to ${r.userId} — ${r.reason}`).join("\n")
-      : "None\n";
-
-    msg += "\n\n**Adjustments:**\n";
-    msg += adjustments.length
-      ? adjustments.map(a => `• $${a.amount} for ${a.userId} — ${a.reason}`).join("\n")
-      : "None";
-
-    await interaction.reply({
-      content: msg,
-      ephemeral: true,
-    });
-  },
+      await interaction.reply({ embeds: [embed] });
+    } catch (err) {
+      console.error(err);
+      await interaction.reply("❌ Error loading transactions.");
+    }
+  }
 };
