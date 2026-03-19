@@ -1,7 +1,7 @@
 const fs = require("fs");
 
 module.exports = async function handleCoachSetupModals(interaction) {
-  if (!interaction.isModalSubmit()) return;
+  if (!interaction.isModalSubmit()) return; 
 
   const id = interaction.customId;
   const value = interaction.fields.getTextInputValue("value");
