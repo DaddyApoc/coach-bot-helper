@@ -7,7 +7,7 @@ module.exports = {
     .setDescription("Add a progress entry for a student")
     .addUserOption(option =>
       option.setName("student")
-        .setDescription("Student to update")
+        .setDescription("Student to update") 
         .setRequired(true)
     )
     .addStringOption(option =>
