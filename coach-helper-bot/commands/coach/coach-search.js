@@ -27,7 +27,7 @@ module.exports = {
         .setTitle(`🔍 Coaches specializing in ${specialty}`)
         .setColor("Purple")
         .addFields(
-          results.map(c => ({
+          ...results.map(c => ({
             name: c.username,
             value: `Experience: ${c.experience || "N/A"}\nLanguages: ${c.languages?.join(", ") || "N/A"}`,
             inline: false
