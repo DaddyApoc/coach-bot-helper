@@ -100,3 +100,5 @@ case "checkout.session.completed": {
   console.log(`Wallet credited: ${discordUserId} +$${amount}`);
   break;
 }
+
+case "checkout.session.completed":
