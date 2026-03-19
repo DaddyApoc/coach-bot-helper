@@ -18,7 +18,7 @@ module.exports = {
       }
 
       const embed = new EmbedBuilder()
-        .setTitle(`📜 Session History — ${interaction.user.username}`)
+        .setTitle(`📜 Session History — ${interaction.user.username}`) 
         .setColor("Purple");
 
       mine.slice(-10).reverse().forEach(s => {
