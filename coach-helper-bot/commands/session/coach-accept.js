@@ -8,7 +8,7 @@ const bookingsPath = "/data/bookings.json";
 
 function ensureFile() {
   if (!fs.existsSync(bookingsPath)) {
-    fs.writeFileSync(bookingsPath, JSON.stringify([]));
+    fs.writeFileSync(bookingsPath, JSON.stringify([])); 
   }
 }
 
