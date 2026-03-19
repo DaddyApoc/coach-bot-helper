@@ -16,7 +16,7 @@ export default {
   data: new SlashCommandBuilder()
     .setName("my-sessions")
     .setDescription("View your booked coaching sessions."),
-
+ 
   async execute(interaction) {
     try {
       ensureFile();
