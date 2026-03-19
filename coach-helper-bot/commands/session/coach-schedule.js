@@ -12,7 +12,7 @@ function ensureFile() {
   }
 }
 
-export default {
+export default { 
   data: new SlashCommandBuilder()
     .setName("coach-schedule")
     .setDescription("View your upcoming coaching sessions."),
