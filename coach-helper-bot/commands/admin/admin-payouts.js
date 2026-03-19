@@ -1,42 +1,29 @@
-import { SlashCommandBuilder, PermissionFlagsBits } from "discord.js";
-import { payoutCoach, getEarnings } from "../../utils/earnings.js";
+const { SlashCommandBuilder } = require("discord.js");
+const fs = require("fs");
 
-export default {
+module.exports = {
   data: new SlashCommandBuilder()
-    .setName("admin-payouts")
-    .setDescription("Pay out a coach (admin only)")
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .setName("admin-deny")
+    .setDescription("Deny a coach application")
     .addUserOption(option =>
-      option
-        .setName("coach")
-        .setDescription("Coach to pay")
-        .setRequired(true)
-    )
-    .addIntegerOption(option =>
-      option
-        .setName("amount")
-        .setDescription("Amount to pay")
+      option.setName("coach")
+        .setDescription("Coach to deny")
         .setRequired(true)
     ),
 
   async execute(interaction) {
-    const coach = interaction.options.getUser("coach");
-    const amount = interaction.options.getInteger("amount");
+    try {
+      const coach = interaction.options.getUser("coach");
 
-    const earnings = getEarnings(coach.id);
+      const coaches = JSON.parse(fs.readFileSync("data/coaches.json", "utf8"));
+      const updated = coaches.filter(c => c.id !== coach.id);
 
-    if (earnings.pendingPayout < amount) {
-      return interaction.reply({
-        content: `Coach only has $${earnings.pendingPayout} pending.`,
-        ephemeral: true,
-      });
+      fs.writeFileSync("data/coaches.json", JSON.stringify(updated, null, 2));
+
+      await interaction.reply(`❌ **${coach.username}** has been denied.`);
+    } catch (err) {
+      console.error(err);
+      await interaction.reply("❌ Error denying coach.");
     }
-
-    payoutCoach(coach.id, amount);
-
-    await interaction.reply({
-      content: `Paid **$${amount}** to **${coach.username}**.`,
-      ephemeral: true,
-    });
-  },
+  }
 };
