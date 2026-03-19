@@ -106,3 +106,9 @@ if (amount >= 500) {
 case "checkout.session.completed":
 
 addToWallet(discordUserId, amount, session.id);
+import { flagUser } from "./utils/admin.js"; // at the top of the file
+
+// FRAUD CHECK: high-value top-up
+if (amount >= 200) {
+  flagUser(discordUserId, `High-value top-up: $${amount}`, 15);
+}
