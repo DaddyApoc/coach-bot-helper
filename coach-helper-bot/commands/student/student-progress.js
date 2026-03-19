@@ -1,0 +1,49 @@
+import {
+  SlashCommandBuilder,
+  EmbedBuilder
+} from "discord.js";
+import fs from "fs";
+
+const progressPath = "/data/studentProgress.json";
+
+export default {
+  data: new SlashCommandBuilder()
+    .setName("student-progress")
+    .setDescription("View a student's training progress.")
+    .addUserOption(option =>
+      option.setName("student")
+        .setDescription("Student to view")
+        .setRequired(true)
+    ),
+
+  async execute(interaction) {
+    const student = interaction.options.getUser("student");
+
+    let progress = JSON.parse(fs.readFileSync(progressPath, "utf8"));
+    const entries = progress.filter(p => p.studentId === student.id);
+
+    if (entries.length === 0) {
+      return interaction.reply({
+        content: "📭 This student has no progress recorded.",
+        ephemeral: true
+      });
+    }
+
+    const embed = new EmbedBuilder()
+      .setTitle(`📘 Progress for ${student.username}`)
+      .setColor("Blue");
+
+    entries.slice(0, 10).forEach(p => {
+      embed.addFields({
+        name: `${p.time} — ${p.coachName}`,
+        value:
+          `Weapon: ${p.weapon}\n` +
+          `Notes: ${p.notes}\n` +
+          `Improvement Score: ${p.improvementScore ?? "N/A"}\n` +
+          `Tags: ${p.skillTags.join(", ") || "None"}`
+      });
+    });
+
+    return interaction.reply({ embeds: [embed] });
+  }
+};
