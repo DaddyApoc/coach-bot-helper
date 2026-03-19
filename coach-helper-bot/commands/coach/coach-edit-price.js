@@ -1,62 +1,32 @@
-import {
-  SlashCommandBuilder,
-  EmbedBuilder
-} from "discord.js";
-import fs from "fs";
+const { SlashCommandBuilder } = require("discord.js");
+const fs = require("fs");
 
-const filePath = "data/coaches.json";
-
-function ensureFile() {
-  if (!fs.existsSync("data")) fs.mkdirSync("data", { recursive: true });
-  if (!fs.existsSync(filePath)) {
-    fs.writeFileSync(filePath, JSON.stringify([]));
-  }
-}
-
-export default {
+module.exports = {
   data: new SlashCommandBuilder()
     .setName("coach-edit-price")
-    .setDescription("Edit a coach's pricing.")
-    .addUserOption(option =>
-      option.setName("coach")
-        .setDescription("The coach to edit")
-        .setRequired(true)
-    )
-    .addNumberOption(option =>
+    .setDescription("Set your coaching price")
+    .addIntegerOption(option =>
       option.setName("price")
-        .setDescription("Price per session in USD")
+        .setDescription("Price per session")
         .setRequired(true)
     ),
 
   async execute(interaction) {
     try {
-      ensureFile();
-      const coachUser = interaction.options.getUser("coach");
-      const price = interaction.options.getNumber("price");
+      const price = interaction.options.getInteger("price");
+      const coaches = JSON.parse(fs.readFileSync("data/coaches.json", "utf8"));
 
-      const coaches = JSON.parse(fs.readFileSync(filePath, "utf8"));
-      const coach = coaches.find(c => c.id === coachUser.id);
-
-      if (!coach) {
-        return interaction.reply({
-          content: "❌ That coach is not registered.",
-          ephemeral: true,
-        });
-      }
+      const coach = coaches.find(c => c.id === interaction.user.id);
+      if (!coach) return interaction.reply("❌ You are not registered as a coach.");
 
       coach.price = price;
-      fs.writeFileSync(filePath, JSON.stringify(coaches, null, 2));
 
-      const embed = new EmbedBuilder()
-        .setTitle("Coach Pricing Updated")
-        .setDescription(`Pricing updated for **${coachUser.username}**`)
-        .addFields({ name: "Price per Session", value: `$${price}` })
-        .setColor("Aqua");
+      fs.writeFileSync("data/coaches.json", JSON.stringify(coaches, null, 2));
 
-      return interaction.reply({ embeds: [embed] });
-    } catch (error) {
-      console.error(error);
-      await interaction.reply("❌ Error updating pricing.");
+      await interaction.reply(`💵 Price updated to **${price} credits**.`);
+    } catch (err) {
+      console.error(err);
+      await interaction.reply("❌ Error updating price.");
     }
   }
 };
