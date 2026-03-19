@@ -36,8 +36,3 @@ export default {
     return interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
   }
 };
-
-"verified": false,
-"denied": false
-
-if (typeof temp.suspended === "undefined") temp.suspended = false;
