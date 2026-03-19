@@ -1,15 +1,20 @@
 import fs from "fs";
 
-const logsPath = "/data/admin-logs.json";
+const logsPath = "data/admin-logs.json";
+const flagsPath = "data/user-flags.json";
 
-function ensureFile() {
+function ensureFiles() {
+  if (!fs.existsSync("data")) fs.mkdirSync("data", { recursive: true });
   if (!fs.existsSync(logsPath)) {
     fs.writeFileSync(logsPath, JSON.stringify([]));
+  }
+  if (!fs.existsSync(flagsPath)) {
+    fs.writeFileSync(flagsPath, JSON.stringify({}));
   }
 }
 
 export function logAdjustment(coachId, amount, reason) {
-  ensureFile();
+  ensureFiles();
   const logs = JSON.parse(fs.readFileSync(logsPath, "utf8"));
   
   logs.push({
@@ -23,8 +28,23 @@ export function logAdjustment(coachId, amount, reason) {
   fs.writeFileSync(logsPath, JSON.stringify(logs, null, 2));
 }
 
+export function logRefund(userId, amount, reason) {
+  ensureFiles();
+  const logs = JSON.parse(fs.readFileSync(logsPath, "utf8"));
+  
+  logs.push({
+    userId,
+    amount,
+    reason,
+    type: "refund",
+    timestamp: new Date().toISOString()
+  });
+  
+  fs.writeFileSync(logsPath, JSON.stringify(logs, null, 2));
+}
+
 export function logStrike(coachId, reason) {
-  ensureFile();
+  ensureFiles();
   const logs = JSON.parse(fs.readFileSync(logsPath, "utf8"));
   
   logs.push({
@@ -38,7 +58,7 @@ export function logStrike(coachId, reason) {
 }
 
 export function logSuspension(coachId, reason) {
-  ensureFile();
+  ensureFiles();
   const logs = JSON.parse(fs.readFileSync(logsPath, "utf8"));
   
   logs.push({
@@ -51,8 +71,33 @@ export function logSuspension(coachId, reason) {
   fs.writeFileSync(logsPath, JSON.stringify(logs, null, 2));
 }
 
+export function flagUser(userId, reason, severity = 5) {
+  ensureFiles();
+  const flags = JSON.parse(fs.readFileSync(flagsPath, "utf8"));
+  
+  if (!flags[userId]) {
+    flags[userId] = { flags: [], totalSeverity: 0 };
+  }
+  
+  flags[userId].flags.push({
+    reason,
+    severity,
+    timestamp: new Date().toISOString()
+  });
+  
+  flags[userId].totalSeverity += severity;
+  
+  fs.writeFileSync(flagsPath, JSON.stringify(flags, null, 2));
+}
+
 export function getAdminLogs(coachId) {
-  ensureFile();
+  ensureFiles();
   const logs = JSON.parse(fs.readFileSync(logsPath, "utf8"));
   return coachId ? logs.filter(l => l.coachId === coachId) : logs;
+}
+
+export function getUserFlags(userId) {
+  ensureFiles();
+  const flags = JSON.parse(fs.readFileSync(flagsPath, "utf8"));
+  return flags[userId] || { flags: [], totalSeverity: 0 };
 }
