@@ -32,7 +32,7 @@ module.exports = {
       const rating = interaction.options.getInteger("rating");
       const comment = interaction.options.getString("comment") || "";
       const tags = interaction.options.getString("tags")
-        ? interaction.options.getString("tags").split(",").map(t => t.trim())
+        ? interaction.options.getString("tags").split(",").map(t => t.trim()) 
         : [];
 
       // Validate rating
