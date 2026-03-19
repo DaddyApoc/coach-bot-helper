@@ -1,6 +1,5 @@
 import { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from "discord.js";
 import { loadTempProfile, saveTempProfile } from "../../utils/coachSetupStorage.js";
-import fs from "fs";
 
 const coachesPath = "data/coaches.json";
 
@@ -16,6 +15,8 @@ export default {
     if (!temp.id) {
       temp.id = coachId;
       temp.username = interaction.user.username;
+      temp.verified = false;
+      temp.suspended = false;
       saveTempProfile(coachId, temp);
     }
 
