@@ -13,6 +13,7 @@ const commandFolders = fs.readdirSync(foldersPath);
 
 const names = new Set();
 
+// Load commands safely
 for (const folder of commandFolders) {
     const commandsPath = path.join(foldersPath, folder);
     const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith(".js"));
@@ -29,28 +30,4 @@ for (const folder of commandFolders) {
         const name = command.data.name;
 
         if (names.has(name)) {
-            console.log(`[DUPLICATE BLOCKED] Command name already exists: ${name}`);
-            continue;
-        }
-
-        names.add(name);
-        commands.push(command.data.toJSON());
-    }
-}
-
-const rest = new REST().setToken(token);
-
-(async () => {
-    try {
-        console.log(`Refreshing ${commands.length} guild commands...`);
-
-        await rest.put(
-            Routes.applicationGuildCommands(clientId, guildId),
-            { body: commands }
-        );
-
-        console.log("Guild commands updated successfully.");
-    } catch (error) {
-        console.error(error);
-    }
-})();
+           
