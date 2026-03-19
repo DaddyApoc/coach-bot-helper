@@ -1,57 +1,49 @@
-// deploy-commands.js
-require("dotenv").config();
 const fs = require("fs");
 const path = require("path");
 const { REST, Routes } = require("discord.js");
-
-const { TOKEN, CLIENT_ID, GUILD_ID } = process.env;
-
-if (!TOKEN || !CLIENT_ID || !GUILD_ID) {
-  console.error("❌ Missing TOKEN, CLIENT_ID, or GUILD_ID in environment.");
-  process.exit(1);
-}
+require("dotenv").config();
 
 const commands = [];
+const commandFiles = [];
 const commandsPath = path.join(__dirname, "commands");
-const commandFolders = fs.readdirSync(commandsPath);
 
-for (const folder of commandFolders) {
-  const folderPath = path.join(commandsPath, folder);
-  const commandFiles = fs
-    .readdirSync(folderPath)
-    .filter(file => file.endsWith(".js"));
+console.log("Loading command files...\n");
 
-  for (const file of commandFiles) { 
+function loadCommands(dir) {
+  const folderPath = path.join(commandsPath, dir);
+  const files = fs.readdirSync(folderPath).filter(f => f.endsWith(".js"));
+
+  for (const file of files) {
     const filePath = path.join(folderPath, file);
     const command = require(filePath);
 
-    if ("data" in command && "execute" in command) {
-      commands.push(command.data.toJSON());
-    } else {
-      console.warn(
-        `[WARNING] The command at ${filePath} is missing "data" or "execute".`
-      );
+    if (!command.data || !command.data.name) {
+      console.log(`Skipped invalid command file: ${filePath}`);
+      continue;
     }
+
+    const name = command.data.name;
+
+    console.log(`Loaded: ${name} (${filePath})`);
+
+    commands.push(command.data.toJSON());
+    commandFiles.push({ name, filePath });
   }
 }
 
-const rest = new REST({ version: "10" }).setToken(TOKEN);
+const folders = fs.readdirSync(commandsPath);
+folders.forEach(folder => loadCommands(folder));
 
-(async () => {
-  try {
-    console.log(
-      `🔁 Started refreshing ${commands.length} application (/) commands for guild ${GUILD_ID}.`
-    );
+console.log("\nFinal Command List:\n");
+commands.forEach((cmd, index) => {
+  console.log(`${index + 1}. ${cmd.name}`);
+});
+console.log("\n");
 
-    const data = await rest.put(
-      Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
-      { body: commands }
-    );
+// Duplicate Detection
+const nameCounts = {};
+const duplicates = [];
 
-    console.log(
-      `✅ Successfully reloaded ${data.length} application (/) commands for guild ${GUILD_ID}.`
-    );
-  } catch (error) {
-    console.error("❌ Error deploying commands:", error);
-  }
-})();
+for (const cmd of commandFiles) {
+  if (!nameCounts[cmd.name]) nameCounts[cmd.name] = [];
+  nameCounts[cmd.name].push(cmd
