@@ -1,85 +1,37 @@
-import {
-  SlashCommandBuilder
-} from "discord.js";
-import fs from "fs";
+const { SlashCommandBuilder } = require("discord.js");
+const fs = require("fs");
 
-const bookingsPath = "/data/bookings.json";
-const progressPath = "/data/studentProgress.json";
-
-export default {
+module.exports = {
   data: new SlashCommandBuilder()
     .setName("session-complete")
-    .setDescription("Mark a session as completed and trigger progress tracking + feedback survey.")
-    .addStringOption(option =>
-      option.setName("bookingid")
-        .setDescription("The booking ID to complete")
+    .setDescription("Mark a session as completed (alias)")
+    .addStringOption(opt =>
+      opt.setName("session_id")
+        .setDescription("The session ID")
         .setRequired(true)
     ),
 
   async execute(interaction) {
-    const bookingId = interaction.options.getString("bookingid"); 
-    const coachId = interaction.user.id;
-
-    if (!fs.existsSync(bookingsPath)) {
-      return interaction.reply({ content: "❌ No bookings found.", ephemeral: true });
-    }
-
-    let bookings = JSON.parse(fs.readFileSync(bookingsPath, "utf8"));
-    let progress = JSON.parse(fs.readFileSync(progressPath, "utf8"));
-
-    const booking = bookings.find(b => b.id === bookingId);
-
-    if (!booking) {
-      return interaction.reply({ content: "❌ Booking not found.", ephemeral: true });
-    }
-
-    if (booking.coachId !== coachId) {
-      return interaction.reply({ content: "❌ This booking is not for you.", ephemeral: true });
-    }
-
-    if (booking.status !== "accepted") {
-      return interaction.reply({ content: "❌ This session is not accepted yet.", ephemeral: true });
-    }
-
-    booking.status = "completed";
-
-    // Create progress entry
-    const entry = {
-      id: Date.now().toString(),
-      studentId: booking.studentId,
-      studentName: booking.studentName,
-      coachId: booking.coachId,
-      coachName: booking.coachName,
-      time: booking.time,
-      weapon: booking.weapon || "Unknown",
-      notes: booking.notes || "None",
-      improvementScore: null,
-      beforeStats: null,
-      afterStats: null,
-      skillTags: [],
-      coachComments: null,
-      studentSelfRating: null,
-      created: new Date().toISOString()
-    };
-
-    progress.push(entry);
-
-    fs.writeFileSync(bookingsPath, JSON.stringify(bookings, null, 2));
-    fs.writeFileSync(progressPath, JSON.stringify(progress, null, 2));
-
-    // Send feedback survey to student
     try {
-      const student = await interaction.client.users.fetch(booking.studentId);
-      await student.send(
-        `⭐ Your session with **${booking.coachName}** is complete!\n` +
-        `Please rate your coach using:\n` +
-        "`/rate-coach coach:@user rating:1-5 comment:\"...\" tags:\"aim, movement, communication\"`"
-      );
-    } catch {}
+      const sessionId = interaction.options.getString("session_id");
+      const sessions = JSON.parse(fs.readFileSync("data/sessions.json", "utf8"));
 
-    return interaction.reply({
-      content: `✅ Session completed. Progress entry created & survey sent.`,
-      ephemeral: true
-    });
+      const session = sessions.find(s => s.id === sessionId);
+
+      if (!session)
+        return interaction.reply("❌ Session not found.");
+
+      if (session.coach !== interaction.user.id)
+        return interaction.reply("❌ You are not the coach for this session.");
+
+      session.status = "completed";
+
+      fs.writeFileSync("data/sessions.json", JSON.stringify(sessions, null, 2));
+
+      return interaction.reply("✅ Session marked as completed.");
+    } catch (err) {
+      console.error(err);
+      return interaction.reply("❌ Error completing session.");
+    }
   }
 };
