@@ -4,58 +4,42 @@ const fs = require("fs");
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("add-progress")
-    .setDescription("Add a progress entry for a student")
-    .addUserOption(option =>
-      option.setName("student")
-        .setDescription("Student to update") 
+    .setDescription("Add progress to a session")
+    .addStringOption(opt =>
+      opt.setName("session_id")
+        .setDescription("The session ID")
         .setRequired(true)
     )
-    .addStringOption(option =>
-      option.setName("weapon")
-        .setDescription("Weapon trained")
+    .addStringOption(opt =>
+      opt.setName("progress")
+        .setDescription("Progress notes")
         .setRequired(true)
-    )
-    .addStringOption(option =>
-      option.setName("improvement")
-        .setDescription("Improvement summary")
-        .setRequired(true)
-    )
-    .addStringOption(option =>
-      option.setName("notes")
-        .setDescription("Additional notes")
-        .setRequired(false)
     ),
 
   async execute(interaction) {
     try {
-      const student = interaction.options.getUser("student");
-      const weapon = interaction.options.getString("weapon");
-      const improvement = interaction.options.getString("improvement");
-      const notes = interaction.options.getString("notes") || "None";
+      const sessionId = interaction.options.getString("session_id");
+      const progress = interaction.options.getString("progress");
 
-      const file = "data/progress.json";
-      if (!fs.existsSync(file)) fs.writeFileSync(file, JSON.stringify([]));
+      const sessions = JSON.parse(fs.readFileSync("data/sessions.json", "utf8"));
+      const session = sessions.find(s => s.id === sessionId);
 
-      const progress = JSON.parse(fs.readFileSync(file, "utf8"));
+      if (!session)
+        return interaction.reply("❌ Session not found.");
 
-      progress.push({
-        studentId: student.id,
-        coachId: interaction.user.id,
-        weapon,
-        improvement,
-        notes,
+      session.progress = session.progress || [];
+      session.progress.push({
+        coach: interaction.user.id,
+        text: progress,
         date: new Date().toISOString()
       });
 
-      fs.writeFileSync(file, JSON.stringify(progress, null, 2));
+      fs.writeFileSync("data/sessions.json", JSON.stringify(sessions, null, 2));
 
-      await interaction.reply(
-        `📘 Progress added for **${student.username}** under **${weapon}**.`
-      );
-
+      return interaction.reply("✅ Progress added.");
     } catch (err) {
       console.error(err);
-      await interaction.reply("❌ Error adding progress.");
+      return interaction.reply("❌ Error adding progress.");
     }
   }
 };
