@@ -1,86 +1,30 @@
-import {
-  SlashCommandBuilder,
-  EmbedBuilder,
-  PermissionFlagsBits
-} from "discord.js";
-import fs from "fs";
-import path from "path";
-import { getEarnings } from "../../utils/earnings.js";
-import { loadSessions } from "../../utils/sessions.js";
+const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
+const fs = require("fs");
 
-export default {
+module.exports = {
   data: new SlashCommandBuilder()
     .setName("admin-dashboard")
-    .setDescription("View the admin monetization dashboard")
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    .setDescription("View admin dashboard stats"),
 
   async execute(interaction) {
-    const adminPath = path.join(process.cwd(), "data", "admin.json");
-    const admin = JSON.parse(fs.readFileSync(adminPath, "utf8"));
+    try {
+      const coaches = JSON.parse(fs.readFileSync("data/coaches.json", "utf8"));
+      const sessions = JSON.parse(fs.readFileSync("data/sessions.json", "utf8"));
+      const wallets = JSON.parse(fs.readFileSync("data/wallets.json", "utf8"));
 
-    const sessions = Object.values(loadSessions());
+      const embed = new EmbedBuilder()
+        .setTitle("📊 Admin Dashboard")
+        .addFields(
+          { name: "Coaches", value: `${coaches.length}`, inline: true },
+          { name: "Sessions", value: `${sessions.length}`, inline: true },
+          { name: "Wallet Accounts", value: `${Object.keys(wallets).length}`, inline: true }
+        )
+        .setColor("Blue");
 
-    // Build earnings summary manually
-    const earningsData = {};
-    sessions.forEach(s => {
-      if (!earningsData[s.coachId]) {
-        earningsData[s.coachId] = { total: 0, pending: 0 };
-      }
-    });
-
-    // Use getEarnings() for each coach
-    for (const coachId of Object.keys(earningsData)) {
-      const e = getEarnings(coachId);
-      earningsData[coachId].total = e.totalEarned;
-      earningsData[coachId].pending = e.pendingPayout;
+      await interaction.reply({ embeds: [embed] });
+    } catch (err) {
+      console.error(err);
+      await interaction.reply("❌ Error loading dashboard.");
     }
-
-    const totalRevenue = Object.values(earningsData).reduce(
-      (sum, e) => sum + e.total,
-      0
-    );
-
-    const totalPending = Object.values(earningsData).reduce(
-      (sum, e) => sum + e.pending,
-      0
-    );
-
-    const embed = new EmbedBuilder()
-      .setTitle("Admin Monetization Dashboard")
-      .setColor("Purple")
-      .addFields(
-        {
-          name: "Total Platform Revenue",
-          value: `$${totalRevenue}`,
-          inline: true
-        },
-        {
-          name: "Pending Payouts",
-          value: `$${totalPending}`,
-          inline: true
-        },
-        {
-          name: "Total Sessions",
-          value: `${sessions.length}`,
-          inline: true
-        },
-        {
-          name: "Refunds Logged",
-          value: `${admin.refunds.length}`,
-          inline: true
-        },
-        {
-          name: "Adjustments Logged",
-          value: `${admin.adjustments.length}`,
-          inline: true
-        }
-      )
-      .setTimestamp();
-
-    await interaction.reply({
-      content: "",
-      embeds: [embed],
-      ephemeral: true
-    });
   }
 };
