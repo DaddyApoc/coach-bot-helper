@@ -50,3 +50,6 @@ export default {
     });
   },
 };
+const activeCount = sessions.filter(
+  s => s.studentId === studentId && s.status !== "completed"
+).length;
