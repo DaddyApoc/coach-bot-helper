@@ -1,65 +1,39 @@
 import fs from "fs";
+import path from "path";
 
-const sessionsPath = "data/sessions.json";
+// Path to sessions.json inside /data
+const filePath = path.join(process.cwd(), "data", "sessions.json");
 
-function ensureFile() {
-  if (!fs.existsSync("data")) fs.mkdirSync("data", { recursive: true });
-  if (!fs.existsSync(sessionsPath)) {
-    fs.writeFileSync(sessionsPath, JSON.stringify([]));
+// Load all sessions
+export function loadSessions() {
+  try {
+    if (!fs.existsSync(filePath)) return {};
+    const raw = fs.readFileSync(filePath, "utf8");
+    return JSON.parse(raw);
+  } catch (err) {
+    console.error("Error loading sessions:", err);
+    return {};
   }
 }
 
-export function createSession(studentId, coachId, price) {
-  ensureFile();
-  const sessions = JSON.parse(fs.readFileSync(sessionsPath, "utf8"));
-  
-  const session = {
-    id: `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-    studentId,
-    coachId,
-    price,
-    status: "pending",
-    createdAt: new Date().toISOString(),
-    confirmedAt: null,
-    completedAt: null
-  };
-  
-  sessions.push(session);
-  fs.writeFileSync(sessionsPath, JSON.stringify(sessions, null, 2));
-  
-  return session;
+// Save all sessions
+export function saveSessions(data) {
+  try {
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+  } catch (err) {
+    console.error("Error saving sessions:", err);
+  }
 }
 
+// Get a single session by ID
 export function getSession(sessionId) {
-  ensureFile();
-  const sessions = JSON.parse(fs.readFileSync(sessionsPath, "utf8"));
-  return sessions.find(s => s.id === sessionId);
+  const sessions = loadSessions();
+  return sessions[sessionId] || null;
 }
 
-export function updateSessionStatus(sessionId, status) {
-  ensureFile();
-  const sessions = JSON.parse(fs.readFileSync(sessionsPath, "utf8"));
-  
-  const session = sessions.find(s => s.id === sessionId);
-  if (!session) return false;
-  
-  session.status = status;
-  if (status === "confirmed") session.confirmedAt = new Date().toISOString();
-  if (status === "completed") session.completedAt = new Date().toISOString();
-  
-  fs.writeFileSync(sessionsPath, JSON.stringify(sessions, null, 2));
-  return true;
-}
-
-export function getUserSessions(userId, role = "student") {
-  ensureFile();
-  const sessions = JSON.parse(fs.readFileSync(sessionsPath, "utf8"));
-  
-  if (role === "student") {
-    return sessions.filter(s => s.studentId === userId);
-  } else if (role === "coach") {
-    return sessions.filter(s => s.coachId === userId);
-  }
-  
-  return [];
+// Save/update a single session
+export function saveSession(sessionId, sessionData) {
+  const sessions = loadSessions();
+  sessions[sessionId] = sessionData;
+  saveSessions(sessions);
 }
