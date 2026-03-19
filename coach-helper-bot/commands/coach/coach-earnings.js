@@ -1,33 +1,25 @@
-import { SlashCommandBuilder } from "discord.js";
-import { getEarnings } from "../../utils/earnings.js";
+const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
+const fs = require("fs");
 
-export default {
+module.exports = {
   data: new SlashCommandBuilder()
     .setName("coach-earnings")
-    .setDescription("View your coaching earnings"),
+    .setDescription("View your earnings"),
 
   async execute(interaction) {
-    const coachId = interaction.user.id;
-    const earnings = getEarnings(coachId);
+    try {
+      const earnings = JSON.parse(fs.readFileSync("data/earnings.json", "utf8"));
+      const amount = earnings[interaction.user.id] || 0;
 
-    const msg = [
-      `**Total Earned:** $${earnings.totalEarned}`,
-      `**Pending Payout:** $${earnings.pendingPayout}`,
-      ``,
-      `**Recent Activity:**`,
-      earnings.history
-        .slice(-10)
-        .reverse()
-        .map(h => {
-          const date = new Date(h.date).toLocaleString();
-          return `• ${h.type} — $${h.amount} (${date})`;
-        })
-        .join("\n") || "No earnings yet.",
-    ].join("\n");
+      const embed = new EmbedBuilder()
+        .setTitle("💰 Your Earnings")
+        .setDescription(`You currently have **${amount} credits**.`)
+        .setColor("Gold");
 
-    await interaction.reply({
-      content: msg,
-      ephemeral: true,
-    });
-  },
+      await interaction.reply({ embeds: [embed] });
+    } catch (err) {
+      console.error(err);
+      await interaction.reply("❌ Error loading earnings.");
+    }
+  }
 };
