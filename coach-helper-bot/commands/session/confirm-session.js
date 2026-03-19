@@ -16,7 +16,7 @@ export default {
       option.setName("booking_id")
         .setDescription("The booking ID from the request.")
         .setRequired(true)
-    )
+    ) 
     .addStringOption(option =>
       option.setName("action")
         .setDescription("Accept or decline the session.")
