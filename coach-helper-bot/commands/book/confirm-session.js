@@ -1,5 +1,5 @@
 import { SlashCommandBuilder } from "discord.js";
-import { getSession, updateSession } from "../../utils/sessions.js";
+import { getSession, updateSessionStatus } from "../../utils/sessions.js";
 
 export default {
   data: new SlashCommandBuilder()
@@ -30,7 +30,7 @@ export default {
       });
     }
 
-    updateSession(sessionId, { status: "confirmed" });
+    updateSessionStatus(sessionId, "confirmed");
 
     await interaction.reply({
       content: `Session **${sessionId}** confirmed.`,
