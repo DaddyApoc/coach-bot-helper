@@ -29,4 +29,4 @@ module.exports = {
       await interaction.reply("❌ Error updating price.");
     }
   }
-};
+}; 
