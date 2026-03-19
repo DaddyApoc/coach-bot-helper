@@ -5,7 +5,7 @@ module.exports = {
   data: new SlashCommandBuilder()
     .setName("wallet-add")
     .setDescription("Add funds to a user's wallet (Admin only)")
-    .addUserOption(option =>
+    .addUserOption(option => 
       option.setName("user")
         .setDescription("User to add funds to")
         .setRequired(true)
