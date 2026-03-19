@@ -1,58 +1,18 @@
-import { SlashCommandBuilder, EmbedBuilder } from "discord.js";
-import fs from "fs";
+const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
+const fs = require("fs");
 
-const coachesPath = "data/coaches.json";
-
-export default {
+module.exports = {
   data: new SlashCommandBuilder()
     .setName("coach-profile")
-    .setDescription("View a coach's profile.")
-    .addUserOption(option =>
-      option.setName("coach")
-        .setDescription("Coach to view")
-        .setRequired(true)
-    ),
+    .setDescription("View your coach profile"),
 
   async execute(interaction) {
-    const coachUser = interaction.options.getUser("coach");
+    try {
+      const coaches = JSON.parse(fs.readFileSync("data/coaches.json", "utf8"));
+      const coach = coaches.find(c => c.id === interaction.user.id);
 
-    if (!fs.existsSync(coachesPath)) {
-      return interaction.reply({ content: "❌ No coaches registered yet.", ephemeral: true });
-    }
+      if (!coach)
+        return interaction.reply("❌ You are not registered as a coach.");
 
-    const coaches = JSON.parse(fs.readFileSync(coachesPath, "utf8"));
-    const coach = coaches.find(c => c.id === coachUser.id);
-
-    if (!coach) {
-      return interaction.reply({ content: "❌ That coach has not set up a profile yet.", ephemeral: true });
-    }
-
-    if (coach.suspended) {
-      return interaction.reply({
-        content: "⛔ This coach is suspended and cannot be booked or viewed.",
-        ephemeral: true
-      });
-    }
-
-    if (!coach.verified) {
-      return interaction.reply({
-        content: "❌ That coach is not verified yet and their profile is not public.",
-        ephemeral: true
-      });
-    }
-
-    const embed = new EmbedBuilder()
-      .setTitle(`🎓 Coach Profile — ${coach.username || coachUser.username}`)
-      .setColor("Gold")
-      .setDescription(coach.about || "No About Me set yet.")
-      .addFields(
-        { name: "Specialties", value: (coach.specialties || []).join(", ") || "None", inline: true },
-        { name: "Weapons", value: (coach.weapons || []).join(", ") || "None", inline: true },
-        { name: "Experience", value: coach.experience || "None", inline: false }
-      );
-
-    if (coach.banner) embed.setImage(coach.banner);
-
-    return interaction.reply({ embeds: [embed] });
-  }
-};
+      const embed = new EmbedBuilder()
+        .setTitle(`
