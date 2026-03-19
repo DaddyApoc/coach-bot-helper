@@ -1,60 +1,40 @@
 import fs from "fs";
-import path from "path";
 
-const filePath = path.join(process.cwd(), "data", "wallets.json");
+const walletPath = "/data/wallets.json";
 
-function loadWallets() {
-  if (!fs.existsSync(filePath)) return {};
-  return JSON.parse(fs.readFileSync(filePath, "utf8"));
-}
-
-function saveWallets(data) {
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+function ensureFile() {
+  if (!fs.existsSync(walletPath)) {
+    fs.writeFileSync(walletPath, JSON.stringify({}));
+  }
 }
 
 export function getWallet(userId) {
-  const wallets = loadWallets();
-  if (!wallets[userId]) {
-    wallets[userId] = { balance: 0, history: [] };
-    saveWallets(wallets);
-  }
-  return wallets[userId];
+  ensureFile();
+  const data = JSON.parse(fs.readFileSync(walletPath, "utf8"));
+  return data[userId]?.balance || 0;
 }
 
-export function addToWallet(userId, amount, stripeId = null) {
-  const wallets = loadWallets();
-
-  if (!wallets[userId]) {
-    wallets[userId] = { balance: 0, history: [] };
+export function addToWallet(userId, amount) {
+  ensureFile();
+  const data = JSON.parse(fs.readFileSync(walletPath, "utf8"));
+  
+  if (!data[userId]) {
+    data[userId] = { balance: 0 };
   }
-
-  wallets[userId].balance += amount;
-
-  wallets[userId].history.push({
-    type: "topup",
-    amount,
-    stripeId,
-    date: Date.now(),
-  });
-
-  saveWallets(wallets);
+  
+  data[userId].balance += amount;
+  fs.writeFileSync(walletPath, JSON.stringify(data, null, 2));
 }
 
 export function deductFromWallet(userId, amount) {
-  const wallets = loadWallets();
-
-  if (!wallets[userId] || wallets[userId].balance < amount) {
+  ensureFile();
+  const data = JSON.parse(fs.readFileSync(walletPath, "utf8"));
+  
+  if (!data[userId] || data[userId].balance < amount) {
     return false;
   }
-
-  wallets[userId].balance -= amount;
-
-  wallets[userId].history.push({
-    type: "deduction",
-    amount,
-    date: Date.now(),
-  });
-
-  saveWallets(wallets);
+  
+  data[userId].balance -= amount;
+  fs.writeFileSync(walletPath, JSON.stringify(data, null, 2));
   return true;
 }
