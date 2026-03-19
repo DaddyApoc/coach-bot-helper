@@ -3,7 +3,7 @@ const fs = require("fs");
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName("student-dashboard")
+    .setName("student-dashboard") 
     .setDescription("View your student dashboard"),
 
   async execute(interaction) {
