@@ -1,9 +1,10 @@
 import fs from "fs";
 
-const earningsPath = "/data/earnings.json";
-const transactionsPath = "/data/transactions.json";
+const earningsPath = "data/earnings.json";
+const transactionsPath = "data/transactions.json";
 
 function ensureFiles() {
+  if (!fs.existsSync("data")) fs.mkdirSync("data", { recursive: true });
   if (!fs.existsSync(earningsPath)) {
     fs.writeFileSync(earningsPath, JSON.stringify({}));
   }
@@ -15,7 +16,11 @@ function ensureFiles() {
 export function getEarnings(coachId) {
   ensureFiles();
   const data = JSON.parse(fs.readFileSync(earningsPath, "utf8"));
-  return data[coachId] || { pending: 0, total: 0, pendingPayout: 0 };
+  return data[coachId] || { 
+    totalEarned: 0, 
+    pendingPayout: 0, 
+    history: [] 
+  };
 }
 
 export function addEarnings(coachId, amount, type) {
@@ -23,23 +28,37 @@ export function addEarnings(coachId, amount, type) {
   const data = JSON.parse(fs.readFileSync(earningsPath, "utf8"));
   
   if (!data[coachId]) {
-    data[coachId] = { pending: 0, total: 0, pendingPayout: 0 };
+    data[coachId] = { totalEarned: 0, pendingPayout: 0, history: [] };
   }
   
-  data[coachId].pending += amount;
   data[coachId].pendingPayout += amount;
-  data[coachId].total += amount;
+  data[coachId].totalEarned += amount;
+  data[coachId].history.push({
+    type,
+    amount,
+    date: new Date().toISOString()
+  });
   
   fs.writeFileSync(earningsPath, JSON.stringify(data, null, 2));
+}
+
+export function deductEarnings(coachId, amount) {
+  ensureFiles();
+  const data = JSON.parse(fs.readFileSync(earningsPath, "utf8"));
   
-  const transactions = JSON.parse(fs.readFileSync(transactionsPath, "utf8"));
-  transactions.push({
-    coachId,
-    amount,
-    type,
-    timestamp: new Date().toISOString()
+  if (!data[coachId] || data[coachId].pendingPayout < amount) {
+    return false;
+  }
+  
+  data[coachId].pendingPayout -= amount;
+  data[coachId].history.push({
+    type: "deduction",
+    amount: -amount,
+    date: new Date().toISOString()
   });
-  fs.writeFileSync(transactionsPath, JSON.stringify(transactions, null, 2));
+  
+  fs.writeFileSync(earningsPath, JSON.stringify(data, null, 2));
+  return true;
 }
 
 export function payoutCoach(coachId, amount) {
@@ -51,17 +70,13 @@ export function payoutCoach(coachId, amount) {
   }
   
   data[coachId].pendingPayout -= amount;
-  fs.writeFileSync(earningsPath, JSON.stringify(data, null, 2));
-  
-  const transactions = JSON.parse(fs.readFileSync(transactionsPath, "utf8"));
-  transactions.push({
-    coachId,
-    amount: -amount,
+  data[coachId].history.push({
     type: "payout",
-    timestamp: new Date().toISOString()
+    amount: -amount,
+    date: new Date().toISOString()
   });
-  fs.writeFileSync(transactionsPath, JSON.stringify(transactions, null, 2));
   
+  fs.writeFileSync(earningsPath, JSON.stringify(data, null, 2));
   return true;
 }
 
