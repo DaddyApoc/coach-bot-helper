@@ -2,4 +2,5 @@
   "refunds": [],
   "adjustments": [],
   "transactions": []
+  "fraudFlags": {}
 }
