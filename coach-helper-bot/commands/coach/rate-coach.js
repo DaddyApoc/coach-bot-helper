@@ -1,19 +1,13 @@
-import {
-  SlashCommandBuilder,
-  EmbedBuilder
-} from "discord.js";
-import fs from "fs";
+const { SlashCommandBuilder } = require("discord.js");
+const fs = require("fs");
 
-const feedbackPath = "data/feedback.json";
-const coachesPath = "data/coaches.json";
-
-export default {
+module.exports = {
   data: new SlashCommandBuilder()
     .setName("rate-coach")
-    .setDescription("Submit feedback for a coach.")
+    .setDescription("Rate a coach after a completed session")
     .addUserOption(option =>
       option.setName("coach")
-        .setDescription("The coach you are rating")
+        .setDescription("Coach you want to rate")
         .setRequired(true)
     )
     .addIntegerOption(option =>
@@ -23,74 +17,97 @@ export default {
     )
     .addStringOption(option =>
       option.setName("comment")
-        .setDescription("Your feedback")
+        .setDescription("Optional comment")
         .setRequired(false)
     )
     .addStringOption(option =>
       option.setName("tags")
-        .setDescription("Comma-separated tags (aim, movement, communication)")
+        .setDescription("Optional comma-separated tags (e.g. aim, movement, game-sense)")
         .setRequired(false)
     ),
 
   async execute(interaction) {
-    const coachUser = interaction.options.getUser("coach");
-    const studentUser = interaction.user;
-    const rating = interaction.options.getInteger("rating");
-    const comment = interaction.options.getString("comment") || "No comment";
-    const tags = interaction.options.getString("tags")?.split(",").map(t => t.trim()) || [];
+    try {
+      const coachUser = interaction.options.getUser("coach");
+      const rating = interaction.options.getInteger("rating");
+      const comment = interaction.options.getString("comment") || "";
+      const tags = interaction.options.getString("tags")
+        ? interaction.options.getString("tags").split(",").map(t => t.trim())
+        : [];
 
-    // Validate rating
-    if (rating < 1 || rating > 5) {
-      return interaction.reply({
-        content: "❌ Rating must be between 1 and 5.",
-        ephemeral: true
+      // Validate rating
+      if (rating < 1 || rating > 5) {
+        return interaction.reply("❌ Rating must be between **1** and **5**.");
+      }
+
+      // Load coach data
+      const coachesFile = "data/coaches.json";
+      const ratingsFile = "data/ratings.json";
+
+      if (!fs.existsSync(coachesFile)) fs.writeFileSync(coachesFile, JSON.stringify([]));
+      if (!fs.existsSync(ratingsFile)) fs.writeFileSync(ratingsFile, JSON.stringify([]));
+
+      const coaches = JSON.parse(fs.readFileSync(coachesFile, "utf8"));
+      const ratings = JSON.parse(fs.readFileSync(ratingsFile, "utf8"));
+
+      const coach = coaches.find(c => c.id === coachUser.id);
+
+      if (!coach) {
+        return interaction.reply("❌ That user is not registered as a coach.");
+      }
+
+      if (coach.suspended) {
+        return interaction.reply("⛔ This coach is currently suspended and cannot be rated.");
+      }
+
+      // Prevent self-rating
+      if (coachUser.id === interaction.user.id) {
+        return interaction.reply("❌ You cannot rate yourself.");
+      }
+
+      // Prevent rating without a completed session
+      const sessions = JSON.parse(fs.readFileSync("data/sessions.json", "utf8"));
+      const completed = sessions.find(
+        s =>
+          s.coachId === coachUser.id &&
+          s.studentId === interaction.user.id &&
+          s.status === "completed"
+      );
+
+      if (!completed) {
+        return interaction.reply("❌ You can only rate a coach **after completing a session** with them.");
+      }
+
+      // Save rating
+      ratings.push({
+        coachId: coachUser.id,
+        studentId: interaction.user.id,
+        rating,
+        comment,
+        tags,
+        date: new Date().toISOString()
       });
+
+      fs.writeFileSync(ratingsFile, JSON.stringify(ratings, null, 2));
+
+      // Recalculate coach average rating
+      const coachRatings = ratings.filter(r => r.coachId === coachUser.id);
+      const avg =
+        coachRatings.reduce((sum, r) => sum + r.rating, 0) / coachRatings.length;
+
+      coach.rating = Math.round(avg * 10) / 10; // round to 1 decimal place
+
+      fs.writeFileSync(coachesFile, JSON.stringify(coaches, null, 2));
+
+      await interaction.reply(
+        `⭐ You rated **${coachUser.username}** **${rating}/5**.\n` +
+        (comment ? `💬 Comment: *${comment}*\n` : "") +
+        (tags.length ? `🏷️ Tags: ${tags.join(", ")}` : "")
+      );
+
+    } catch (err) {
+      console.error(err);
+      await interaction.reply("❌ Error submitting rating.");
     }
-
-    // Load JSON data
-    let feedback = JSON.parse(fs.readFileSync(feedbackPath, "utf8"));
-    let coaches = JSON.parse(fs.readFileSync(coachesPath, "utf8"));
-
-    // Find coach entry
-    const coach = coaches.find(c => c.id === coachUser.id);
-
-    // Suspension check (correct location)
-    if (coach?.suspended) {
-      return interaction.reply({
-        content: "⛔ This coach is suspended and cannot be rated.",
-        ephemeral: true
-      });
-    }
-
-    // Create feedback entry
-    const entry = {
-      id: Date.now().toString(),
-      coachId: coachUser.id,
-      coachName: coachUser.username,
-      studentId: studentUser.id,
-      studentName: studentUser.username,
-      rating,
-      comment,
-      tags,
-      created: new Date().toISOString()
-    };
-
-    feedback.push(entry);
-
-    // Update coach rating
-    if (coach) {
-      const coachFeedback = feedback.filter(f => f.coachId === coachUser.id);
-      const avg = coachFeedback.reduce((a, b) => a + b.rating, 0) / coachFeedback.length;
-      coach.rating = Number(avg.toFixed(2));
-    }
-
-    // Save updated files
-    fs.writeFileSync(feedbackPath, JSON.stringify(feedback, null, 2));
-    fs.writeFileSync(coachesPath, JSON.stringify(coaches, null, 2));
-
-    return interaction.reply({
-      content: `⭐ Thank you! Your feedback for **${coachUser.username}** has been submitted.`,
-      ephemeral: true
-    });
   }
 };
