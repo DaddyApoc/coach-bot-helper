@@ -31,3 +31,8 @@ export default {
     });
   },
 };
+
+import { flagUser } from "../../utils/admin.js";
+
+logRefund(user.id, amount, reason);
+flagUser(user.id, `Refund issued: $${amount}`, 10);
