@@ -104,3 +104,5 @@ if (amount >= 500) {
 }
 
 case "checkout.session.completed":
+
+addToWallet(discordUserId, amount, session.id);
