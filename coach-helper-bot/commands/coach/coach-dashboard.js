@@ -32,4 +32,4 @@ module.exports = {
       await interaction.reply("❌ Error loading dashboard.");
     }
   }
-};
+}; 
