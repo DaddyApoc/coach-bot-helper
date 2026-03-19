@@ -1,49 +1,44 @@
-import {
-  SlashCommandBuilder,
-  EmbedBuilder
-} from "discord.js";
-import fs from "fs";
+const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
+const fs = require("fs");
 
-const progressPath = "/data/studentProgress.json";
-
-export default {
+module.exports = {
   data: new SlashCommandBuilder()
     .setName("student-progress")
-    .setDescription("View a student's training progress.")
-    .addUserOption(option =>
-      option.setName("student")
-        .setDescription("Student to view")
-        .setRequired(true)
-    ),
+    .setDescription("View your coaching progress"),
 
   async execute(interaction) {
-    const student = interaction.options.getUser("student");
+    try {
+      const file = "data/progress.json";
+      if (!fs.existsSync(file)) fs.writeFileSync(file, JSON.stringify([]));
 
-    let progress = JSON.parse(fs.readFileSync(progressPath, "utf8"));
-    const entries = progress.filter(p => p.studentId === student.id);
+      const progress = JSON.parse(fs.readFileSync(file, "utf8"));
+      const entries = progress.filter(p => p.studentId === interaction.user.id);
 
-    if (entries.length === 0) {
-      return interaction.reply({
-        content: "📭 This student has no progress recorded.",
-        ephemeral: true
+      if (entries.length === 0) {
+        return interaction.reply("📭 You have no recorded progress yet.");
+      }
+
+      const embed = new EmbedBuilder()
+        .setTitle(`📘 Progress Report — ${interaction.user.username}`)
+        .setColor("Blue");
+
+      entries.slice(-10).reverse().forEach((p, i) => {
+        embed.addFields({
+          name: `Entry ${i + 1}`,
+          value:
+            `**Coach:** <@${p.coachId}>\n` +
+            `**Weapon:** ${p.weapon}\n` +
+            `**Improvement:** ${p.improvement}\n` +
+            `**Notes:** ${p.notes}\n` +
+            `**Date:** ${p.date}`
+        });
       });
+
+      await interaction.reply({ embeds: [embed] });
+
+    } catch (err) {
+      console.error(err);
+      await interaction.reply("❌ Error loading progress.");
     }
-
-    const embed = new EmbedBuilder()
-      .setTitle(`📘 Progress for ${student.username}`)
-      .setColor("Blue");
-
-    entries.slice(0, 10).forEach(p => {
-      embed.addFields({
-        name: `${p.time} — ${p.coachName}`,
-        value:
-          `Weapon: ${p.weapon}\n` +
-          `Notes: ${p.notes}\n` +
-          `Improvement Score: ${p.improvementScore ?? "N/A"}\n` +
-          `Tags: ${p.skillTags.join(", ") || "None"}`
-      });
-    });
-
-    return interaction.reply({ embeds: [embed] });
   }
 };
