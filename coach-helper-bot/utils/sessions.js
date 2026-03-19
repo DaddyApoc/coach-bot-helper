@@ -1,7 +1,6 @@
 import fs from "fs";
 import path from "path";
 
-// Path to sessions.json inside /data
 const filePath = path.join(process.cwd(), "data", "sessions.json");
 
 // Load all sessions
@@ -25,15 +24,31 @@ export function saveSessions(data) {
   }
 }
 
-// Get a single session by ID
+// Create a new session
+export function createSession(sessionId, sessionData) {
+  const sessions = loadSessions();
+  sessions[sessionId] = sessionData;
+  saveSessions(sessions);
+  return sessions[sessionId];
+}
+
+// Get a single session
 export function getSession(sessionId) {
   const sessions = loadSessions();
   return sessions[sessionId] || null;
 }
 
-// Save/update a single session
+// Update an existing session
 export function saveSession(sessionId, sessionData) {
   const sessions = loadSessions();
   sessions[sessionId] = sessionData;
   saveSessions(sessions);
+}
+
+// Get all sessions for a specific user
+export function getUserSessions(userId) {
+  const sessions = loadSessions();
+  return Object.values(sessions).filter(
+    s => s.studentId === userId || s.coachId === userId
+  );
 }
