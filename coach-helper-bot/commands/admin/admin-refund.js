@@ -1,7 +1,6 @@
 import { SlashCommandBuilder, PermissionFlagsBits } from "discord.js";
 import { addToWallet } from "../../utils/wallet.js";
-import { logRefund } from "../../utils/admin.js";
-import { flagUser } from "../../utils/admin.js";
+import { logRefund, flagUser } from "../../utils/admin.js";
 
 export default {
   data: new SlashCommandBuilder()
@@ -33,8 +32,3 @@ export default {
     });
   },
 };
-
-import { flagUser } from "../../utils/admin.js";
-
-logRefund(user.id, amount, reason);
-flagUser(user.id, `Refund issued: $${amount}`, 10);
