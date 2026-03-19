@@ -24,6 +24,10 @@ export default {
 
     addToWallet(user.id, amount);
     logRefund(user.id, amount, reason);
+    import { flagUser } from "../../utils/admin.js"; // at the top
+
+// FRAUD CHECK: refund abuse
+flagUser(user.id, `Refund issued: $${amount}`, 10);
 
     await interaction.reply({
       content: `Refunded **$${amount}** to **${user.username}**.\nReason: ${reason}`,
