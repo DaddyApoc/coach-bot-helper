@@ -97,8 +97,10 @@ case "checkout.session.completed": {
 
   addToWallet(discordUserId, amount, session.id);
 
-  console.log(`Wallet credited: ${discordUserId} +$${amount}`);
-  break;
+import { flagUser } from "./utils/admin.js";
+
+if (amount >= 500) {
+  flagUser(discordUserId, `High-value top-up: $${amount}`, 15);
 }
 
 case "checkout.session.completed":
