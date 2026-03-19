@@ -1,4 +1,4 @@
-import "dotenv/config";
+   import "dotenv/config";
 import { REST, Routes } from "discord.js";
 import fs from "fs";
 import path from "path";
@@ -19,8 +19,13 @@ for (const folder of commandFolders) {
     const filePath = path.join(commandsPath, file);
     const command = (await import(`file://${filePath}`)).default;
 
-    if (command.data) {
-      commands.push(command.data.toJSON());
+    if (command?.data) {
+      const json = command.data.toJSON();
+
+      // ⭐ LOG THE COMMAND INDEX + NAME
+      console.log(`[${commands.length}] Loaded command: ${json.name}`);
+
+      commands.push(json);
     }
   }
 }
@@ -38,6 +43,7 @@ const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);
 
     console.log("✅ Successfully reloaded guild (/) commands.");
   } catch (error) {
+    console.error("❌ Error updating commands:");
     console.error(error);
   }
 })();
