@@ -7,7 +7,7 @@ const { Client, Collection, GatewayIntentBits, Partials, Events } = require("dis
 const handleCoachSetupButtons = require("./interactions/coachSetupButtons");
 const handleCoachSetupModals = require("./interactions/coachSetupModals");
 
-const { TOKEN } = process.env;
+const { TOKEN } = process.env; 
 if (!TOKEN) {
   console.error("❌ Missing TOKEN in environment.");
   process.exit(1);
