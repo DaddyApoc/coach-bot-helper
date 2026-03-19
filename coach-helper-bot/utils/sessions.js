@@ -1,50 +1,65 @@
-import { SlashCommandBuilder } from "discord.js";
-import { getSession, updateSessionStatus } from "../../utils/sessions.js";
-import { addEarnings } from "../../utils/earnings.js";
+import fs from "fs";
 
-export default {
-  data: new SlashCommandBuilder()
-    .setName("complete-session")
-    .setDescription("Mark a session as completed")
-    .addStringOption(option =>
-      option
-        .setName("session_id")
-        .setDescription("The session ID")
-        .setRequired(true)
-    ),
+const sessionsPath = "data/sessions.json";
 
-  async execute(interaction) {
-    const sessionId = interaction.options.getString("session_id");
-    const session = getSession(sessionId);
+function ensureFile() {
+  if (!fs.existsSync("data")) fs.mkdirSync("data", { recursive: true });
+  if (!fs.existsSync(sessionsPath)) {
+    fs.writeFileSync(sessionsPath, JSON.stringify([]));
+  }
+}
 
-    if (!session) {
-      return interaction.reply({
-        content: "Invalid session ID.",
-        ephemeral: true,
-      });
-    }
+export function createSession(studentId, coachId, price) {
+  ensureFile();
+  const sessions = JSON.parse(fs.readFileSync(sessionsPath, "utf8"));
+  
+  const session = {
+    id: `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    studentId,
+    coachId,
+    price,
+    status: "pending",
+    createdAt: new Date().toISOString(),
+    confirmedAt: null,
+    completedAt: null
+  };
+  
+  sessions.push(session);
+  fs.writeFileSync(sessionsPath, JSON.stringify(sessions, null, 2));
+  
+  return session;
+}
 
-    if (session.coachId !== interaction.user.id) {
-      return interaction.reply({
-        content: "You are not the coach for this session.",
-        ephemeral: true,
-      });
-    }
+export function getSession(sessionId) {
+  ensureFile();
+  const sessions = JSON.parse(fs.readFileSync(sessionsPath, "utf8"));
+  return sessions.find(s => s.id === sessionId);
+}
 
-    if (session.status !== "confirmed") {
-      return interaction.reply({
-        content: "This session is not confirmed yet.",
-        ephemeral: true,
-      });
-    }
+export function updateSessionStatus(sessionId, status) {
+  ensureFile();
+  const sessions = JSON.parse(fs.readFileSync(sessionsPath, "utf8"));
+  
+  const session = sessions.find(s => s.id === sessionId);
+  if (!session) return false;
+  
+  session.status = status;
+  if (status === "confirmed") session.confirmedAt = new Date().toISOString();
+  if (status === "completed") session.completedAt = new Date().toISOString();
+  
+  fs.writeFileSync(sessionsPath, JSON.stringify(sessions, null, 2));
+  return true;
+}
 
-    updateSessionStatus(sessionId, "completed");
-
-    addEarnings(session.coachId, session.price, sessionId);
-
-    await interaction.reply({
-      content: `Session **${sessionId}** marked as completed.\nYou earned **$${session.price}**.`,
-      ephemeral: true,
-    });
-  },
-};
+export function getUserSessions(userId, role = "student") {
+  ensureFile();
+  const sessions = JSON.parse(fs.readFileSync(sessionsPath, "utf8"));
+  
+  if (role === "student") {
+    return sessions.filter(s => s.studentId === userId);
+  } else if (role === "coach") {
+    return sessions.filter(s => s.coachId === userId);
+  }
+  
+  return [];
+}
