@@ -46,4 +46,48 @@ const duplicates = [];
 
 for (const cmd of commandFiles) {
   if (!nameCounts[cmd.name]) nameCounts[cmd.name] = [];
-  nameCounts[cmd.name].push(cmd
+  nameCounts[cmd.name].push(cmd.filePath);
+}
+
+for (const name in nameCounts) {
+  if (nameCounts[name].length > 1) {
+    duplicates.push({ name, files: nameCounts[name] });
+  }
+}
+
+if (duplicates.length > 0) {
+  console.log("Duplicate command names detected:\n");
+
+  duplicates.forEach(dup => {
+    console.log(`Duplicate name: "${dup.name}"`);
+    dup.files.forEach(f => console.log(`  -> ${f}`));
+    console.log("");
+  });
+
+  console.log("Deployment cancelled. Fix duplicates and try again.");
+  process.exit(1);
+}
+
+// Deploy
+const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
+
+(async () => {
+  try {
+    console.log(`Deploying ${commands.length} commands...\n`);
+
+    await rest.put(
+      Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
+      { body: commands }
+    );
+
+    console.log("Commands deployed successfully.");
+  } catch (error) {
+    console.error("\nError deploying commands:");
+    console.error(error);
+
+    if (error.rawError?.errors) {
+      console.log("\nDiscord Error Details:");
+      console.log(JSON.stringify(error.rawError.errors, null, 2));
+    }
+  }
+})();
