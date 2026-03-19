@@ -1,41 +1,77 @@
 import fs from "fs";
+import path from "path";
 
-const walletPath = "data/wallets.json";
+const filePath = path.join(process.cwd(), "data", "wallets.json");
 
-function ensureFile() {
-  if (!fs.existsSync("data")) fs.mkdirSync("data", { recursive: true });
-  if (!fs.existsSync(walletPath)) {
-    fs.writeFileSync(walletPath, JSON.stringify({}));
+// Load all wallets
+export function loadWallets() {
+  try {
+    if (!fs.existsSync(filePath)) return {};
+    const raw = fs.readFileSync(filePath, "utf8");
+    return JSON.parse(raw);
+  } catch (err) {
+    console.error("Error loading wallets:", err);
+    return {};
   }
 }
 
+// Save all wallets
+export function saveWallets(data) {
+  try {
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+  } catch (err) {
+    console.error("Error saving wallets:", err);
+  }
+}
+
+// Get a single user's wallet
 export function getWallet(userId) {
-  ensureFile();
-  const data = JSON.parse(fs.readFileSync(walletPath, "utf8"));
-  return data[userId] || { balance: 0 };
+  const wallets = loadWallets();
+  return wallets[userId] || { balance: 0, history: [] };
 }
 
-export function addToWallet(userId, amount) {
-  ensureFile();
-  const data = JSON.parse(fs.readFileSync(walletPath, "utf8"));
-  
-  if (!data[userId]) {
-    data[userId] = { balance: 0 };
+// Add money to a wallet
+export function addToWallet(userId, amount, source = "system") {
+  const wallets = loadWallets();
+
+  if (!wallets[userId]) {
+    wallets[userId] = { balance: 0, history: [] };
   }
-  
-  data[userId].balance += amount;
-  fs.writeFileSync(walletPath, JSON.stringify(data, null, 2));
+
+  wallets[userId].balance += amount;
+
+  wallets[userId].history.push({
+    type: "add",
+    amount,
+    source,
+    date: new Date().toISOString()
+  });
+
+  saveWallets(wallets);
+  return wallets[userId];
 }
 
-export function deductFromWallet(userId, amount) {
-  ensureFile();
-  const data = JSON.parse(fs.readFileSync(walletPath, "utf8"));
-  
-  if (!data[userId] || data[userId].balance < amount) {
-    return false;
+// Deduct money from a wallet
+export function deductFromWallet(userId, amount, reason = "system") {
+  const wallets = loadWallets();
+
+  if (!wallets[userId]) {
+    wallets[userId] = { balance: 0, history: [] };
   }
-  
-  data[userId].balance -= amount;
-  fs.writeFileSync(walletPath, JSON.stringify(data, null, 2));
-  return true;
+
+  if (wallets[userId].balance < amount) {
+    return false; // insufficient funds
+  }
+
+  wallets[userId].balance -= amount;
+
+  wallets[userId].history.push({
+    type: "deduct",
+    amount,
+    reason,
+    date: new Date().toISOString()
+  });
+
+  saveWallets(wallets);
+  return wallets[userId];
 }
