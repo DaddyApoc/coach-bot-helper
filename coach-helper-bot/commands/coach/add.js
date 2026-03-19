@@ -1,11 +1,12 @@
 import { SlashCommandBuilder } from "discord.js";
 import fs from "fs";
 
-const filePath = "/data/coaches.json";
+const filePath = "data/coaches.json";
 
 function ensureFile() {
+  if (!fs.existsSync("data")) fs.mkdirSync("data", { recursive: true });
   if (!fs.existsSync(filePath)) {
-    fs.writeFileSync(filePath, JSON.stringify({}));
+    fs.writeFileSync(filePath, JSON.stringify([]));
   }
 }
 
@@ -31,9 +32,19 @@ export default {
       const user = interaction.options.getUser("user");
       const bio = interaction.options.getString("bio");
 
-      const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
-      data[user.id] = { bio };
-      fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+      const coaches = JSON.parse(fs.readFileSync(filePath, "utf8"));
+      
+      const coach = {
+        id: user.id,
+        username: user.username,
+        bio,
+        verified: false,
+        suspended: false,
+        createdAt: new Date().toISOString()
+      };
+      
+      coaches.push(coach);
+      fs.writeFileSync(filePath, JSON.stringify(coaches, null, 2));
 
       await interaction.reply(`✅ **${user.username}** has been added as a coach.`);
     } catch (error) {
