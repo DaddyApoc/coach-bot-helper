@@ -47,6 +47,6 @@ export default {
     } catch (error) {
       console.error(error);
       await interaction.reply("❌ Error retrieving sessions.");
-    }
+    } 
   }
 };
