@@ -37,5 +37,5 @@ module.exports = {
       await interaction.reply("❌ Error completing session.");
     }
   }
-};
+}; 
  
