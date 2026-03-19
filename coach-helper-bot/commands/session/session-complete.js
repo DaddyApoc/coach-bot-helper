@@ -17,7 +17,7 @@ export default {
     ),
 
   async execute(interaction) {
-    const bookingId = interaction.options.getString("bookingid");
+    const bookingId = interaction.options.getString("bookingid"); 
     const coachId = interaction.user.id;
 
     if (!fs.existsSync(bookingsPath)) {
