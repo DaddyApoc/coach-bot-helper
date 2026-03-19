@@ -36,4 +36,4 @@ module.exports = {
       await interaction.reply("❌ Error adjusting earnings.");
     }
   }
-};
+}; 
