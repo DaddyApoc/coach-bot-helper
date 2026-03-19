@@ -6,7 +6,7 @@ module.exports = {
     .setName("wallet-balance")
     .setDescription("Check your wallet balance"),
 
-  async execute(interaction) {
+  async execute(interaction) { 
     try {
       const wallet = getWallet(interaction.user.id);
 
