@@ -1,34 +1,26 @@
-import { SlashCommandBuilder, PermissionFlagsBits } from "discord.js";
-import fs from "fs";
+const { SlashCommandBuilder } = require("discord.js");
+const fs = require("fs");
 
-const adminConfigPath = "data/adminConfig.json";
-
-export default {
+module.exports = {
   data: new SlashCommandBuilder()
     .setName("admin-set-log")
-    .setDescription("Set the admin moderation log channel.")
+    .setDescription("Set the log channel for admin events")
     .addChannelOption(option =>
       option.setName("channel")
-        .setDescription("Channel to send moderation logs to")
+        .setDescription("Channel to send logs to")
         .setRequired(true)
-    )
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    ),
 
   async execute(interaction) {
-    const channel = interaction.options.getChannel("channel");
+    try {
+      const channel = interaction.options.getChannel("channel");
 
-    let config = {};
-    if (fs.existsSync(adminConfigPath)) {
-      config = JSON.parse(fs.readFileSync(adminConfigPath, "utf8"));
+      fs.writeFileSync("data/log-channel.json", JSON.stringify({ channelId: channel.id }, null, 2));
+
+      await interaction.reply(`📘 Log channel set to ${channel}.`);
+    } catch (err) {
+      console.error(err);
+      await interaction.reply("❌ Error setting log channel.");
     }
-
-    config.logChannel = channel.id;
-
-    fs.writeFileSync(adminConfigPath, JSON.stringify(config, null, 2));
-
-    return interaction.reply({
-      content: `✅ Moderation log channel set to ${channel}.`,
-      ephemeral: true
-    });
   }
 };
