@@ -33,4 +33,4 @@ module.exports = {
       await interaction.reply("❌ Error accepting session.");
     }
   }
-};
+}; 
