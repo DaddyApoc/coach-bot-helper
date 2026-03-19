@@ -4,6 +4,13 @@ import { logAdminEvent } from "../../utils/adminLogger.js";
 
 const strikesPath = "data/strikes.json";
 
+function ensureFile() {
+  if (!fs.existsSync("data")) fs.mkdirSync("data", { recursive: true });
+  if (!fs.existsSync(strikesPath)) {
+    fs.writeFileSync(strikesPath, JSON.stringify([]));
+  }
+}
+
 export default {
   data: new SlashCommandBuilder()
     .setName("admin-strike")
@@ -24,10 +31,8 @@ export default {
     const coachUser = interaction.options.getUser("coach");
     const reason = interaction.options.getString("reason");
 
-    let strikes = [];
-    if (fs.existsSync(strikesPath)) {
-      strikes = JSON.parse(fs.readFileSync(strikesPath, "utf8"));
-    }
+    ensureFile();
+    let strikes = JSON.parse(fs.readFileSync(strikesPath, "utf8"));
 
     const entry = {
       coachId: coachUser.id,
@@ -54,20 +59,19 @@ export default {
       `**Coach:** ${coachUser}\n**Reason:** ${reason}\n**Issued by:** ${interaction.user}`
     );
 
+    // Auto-suspend at 3 strikes
+    const coachStrikes = strikes.filter(s => s.coachId === coachUser.id);
+    if (coachStrikes.length >= 3) {
+      logAdminEvent(
+        interaction.client,
+        "⛔ Auto-Suspension Triggered",
+        `${coachUser} has reached **3 strikes** and will be suspended.`
+      );
+    }
+
     return interaction.reply({
       content: `✅ Strike issued to ${coachUser}.`,
       ephemeral: true
     });
   }
 };
-
-// Auto-suspend at 3 strikes
-const coachStrikes = strikes.filter(s => s.coachId === coachUser.id);
-if (coachStrikes.length >= 3) {
-  // We will implement full suspension in System 7.3
-  logAdminEvent(
-    interaction.client,
-    "⛔ Auto-Suspension Triggered",
-    `${coachUser} has reached **3 strikes** and will be suspended.`
-  );
-}
