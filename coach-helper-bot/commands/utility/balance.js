@@ -4,7 +4,7 @@ const { getWallet } = require("../../utils/wallet");
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("balance")
-    .setDescription("Check your wallet balance (alias)"),
+    .setDescription("Check your wallet balance (alias)"), 
 
   async execute(interaction) {
     try {
