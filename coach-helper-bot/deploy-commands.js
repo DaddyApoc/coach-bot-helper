@@ -1,14 +1,19 @@
-   import "dotenv/config";
+import "dotenv/config";
 import { REST, Routes } from "discord.js";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+
+// Debug marker so we know Railway is using THIS file
+console.log(">>> USING NEW DEPLOY FILE <<<");
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const commands = [];
 const foldersPath = path.join(__dirname, "commands");
+
+// Read all folders inside /commands
 const commandFolders = fs.readdirSync(foldersPath);
 
 for (const folder of commandFolders) {
@@ -17,15 +22,23 @@ for (const folder of commandFolders) {
 
   for (const file of commandFiles) {
     const filePath = path.join(commandsPath, file);
-    const command = (await import(`file://${filePath}`)).default;
 
-    if (command?.data) {
-      const json = command.data.toJSON();
+    try {
+      const command = (await import(`file://${filePath}`)).default;
 
-      // ⭐ LOG THE COMMAND INDEX + NAME
-      console.log(`[${commands.length}] Loaded command: ${json.name}`);
+      if (command?.data) {
+        const json = command.data.toJSON();
 
-      commands.push(json);
+        // ⭐ LOG COMMAND INDEX + NAME
+        console.log(`[${commands.length}] Loaded command: ${json.name}`);
+
+        commands.push(json);
+      } else {
+        console.log(`⚠️ Skipped (no data): ${file}`);
+      }
+    } catch (err) {
+      console.log(`❌ Failed to load command file: ${file}`);
+      console.error(err);
     }
   }
 }
