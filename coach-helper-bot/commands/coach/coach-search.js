@@ -1,61 +1,43 @@
-import {
-  SlashCommandBuilder,
-  EmbedBuilder
-} from "discord.js";
-import fs from "fs";
+const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
+const fs = require("fs");
 
-const filePath = "/data/coaches.json";
-
-function ensureFile() {
-  if (!fs.existsSync(filePath)) {
-    fs.writeFileSync(filePath, JSON.stringify({}));
-  } 
-}
-
-export default {
+module.exports = {
   data: new SlashCommandBuilder()
     .setName("coach-search")
-    .setDescription("Search for coaches by tag or weapon.")
-    .addStringOption(option =>
-      option.setName("query")
-        .setDescription("Search term (tag or weapon)")
+    .setDescription("Search for coaches by specialty")
+    .addStringOption(opt =>
+      opt.setName("specialty")
+        .setDescription("Specialty to search for")
         .setRequired(true)
     ),
 
   async execute(interaction) {
     try {
-      ensureFile();
-      const query = interaction.options.getString("query").toLowerCase();
+      const specialty = interaction.options.getString("specialty");
+      const coaches = JSON.parse(fs.readFileSync("data/coaches.json", "utf8"));
 
-      const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
-      const results = [];
+      const results = coaches.filter(c =>
+        c.specialties?.includes(specialty)
+      );
 
-      for (const [coachId, coach] of Object.entries(data)) {
-        const tags = coach.tags || [];
-        const weapons = coach.weapons || [];
-        
-        if (tags.some(t => t.toLowerCase().includes(query)) ||
-            weapons.some(w => w.toLowerCase().includes(query))) {
-          results.push({ id: coachId, ...coach });
-        }
-      }
-
-      if (results.length === 0) {
-        return interaction.reply({
-          content: `❌ No coaches found matching "${query}".`,
-          ephemeral: true
-        });
-      }
+      if (!results.length)
+        return interaction.reply("❌ No coaches found with that specialty.");
 
       const embed = new EmbedBuilder()
-        .setTitle(`Search Results for "${query}"`)
-        .setColor("Blue")
-        .setDescription(results.map(c => `<@${c.id}> — ${c.bio || "No bio"}`).join("\n"));
+        .setTitle(`🔍 Coaches specializing in ${specialty}`)
+        .setColor("Purple")
+        .addFields(
+          results.map(c => ({
+            name: c.username,
+            value: `Experience: ${c.experience || "N/A"}\nLanguages: ${c.languages?.join(", ") || "N/A"}`,
+            inline: false
+          }))
+        );
 
       return interaction.reply({ embeds: [embed] });
-    } catch (error) {
-      console.error(error);
-      await interaction.reply("❌ Error searching coaches.");
+    } catch (err) {
+      console.error(err);
+      return interaction.reply("❌ Error searching coaches.");
     }
   }
 };
