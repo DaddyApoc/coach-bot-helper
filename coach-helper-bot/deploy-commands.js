@@ -4,8 +4,8 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
-// Debug marker so we know Railway is using THIS file
-console.log(">>> USING NEW DEPLOY FILE <<<");
+// Mark deploy start
+console.log("=== DEPLOY START ===");
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -59,4 +59,8 @@ const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);
     console.error("❌ Error updating commands:");
     console.error(error);
   }
+
+  // Mark deploy end and force Railway to stop here
+  console.log("=== DEPLOY END ===");
+  process.exit(0);
 })();
