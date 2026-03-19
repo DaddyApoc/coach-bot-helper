@@ -10,7 +10,7 @@ module.exports = {
     try {
       const userId = interaction.user.id;
 
-      // Ensure coach profile exists
+      // Ensure coach profile exists 
       const file = "data/coaches.json";
       if (!fs.existsSync(file)) fs.writeFileSync(file, JSON.stringify([]));
 
