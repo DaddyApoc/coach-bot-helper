@@ -1,61 +1,31 @@
-import {
-  SlashCommandBuilder,
-  EmbedBuilder
-} from "discord.js";
-import fs from "fs";
+const { SlashCommandBuilder } = require("discord.js");
+const fs = require("fs");
 
-const filePath = "data/coaches.json";
-
-function ensureFile() {
-  if (!fs.existsSync("data")) fs.mkdirSync("data", { recursive: true });
-  if (!fs.existsSync(filePath)) {
-    fs.writeFileSync(filePath, JSON.stringify([]));
-  }
-}
-
-export default {
+module.exports = {
   data: new SlashCommandBuilder()
     .setName("coach-edit-bio")
-    .setDescription("Edit a coach's bio.")
-    .addUserOption(option =>
-      option.setName("coach")
-        .setDescription("The coach to edit")
-        .setRequired(true)
-    )
+    .setDescription("Edit your coach bio")
     .addStringOption(option =>
       option.setName("bio")
-        .setDescription("New bio")
+        .setDescription("Your new bio")
         .setRequired(true)
     ),
 
   async execute(interaction) {
     try {
-      ensureFile();
-      const coachUser = interaction.options.getUser("coach");
-      const newBio = interaction.options.getString("bio");
+      const bio = interaction.options.getString("bio");
+      const coaches = JSON.parse(fs.readFileSync("data/coaches.json", "utf8"));
 
-      const coaches = JSON.parse(fs.readFileSync(filePath, "utf8"));
-      const coach = coaches.find(c => c.id === coachUser.id);
+      const coach = coaches.find(c => c.id === interaction.user.id);
+      if (!coach) return interaction.reply("❌ You are not registered as a coach.");
 
-      if (!coach) {
-        return interaction.reply({
-          content: "❌ That coach is not registered.",
-          ephemeral: true,
-        });
-      }
+      coach.bio = bio;
 
-      coach.bio = newBio;
-      fs.writeFileSync(filePath, JSON.stringify(coaches, null, 2));
+      fs.writeFileSync("data/coaches.json", JSON.stringify(coaches, null, 2));
 
-      const embed = new EmbedBuilder()
-        .setTitle("Coach Bio Updated")
-        .setDescription(`Bio updated for **${coachUser.username}**`)
-        .addFields({ name: "New Bio", value: newBio })
-        .setColor("Aqua");
-
-      return interaction.reply({ embeds: [embed] });
-    } catch (error) {
-      console.error(error);
+      await interaction.reply(`📝 Bio updated.`);
+    } catch (err) {
+      console.error(err);
       await interaction.reply("❌ Error updating bio.");
     }
   }
