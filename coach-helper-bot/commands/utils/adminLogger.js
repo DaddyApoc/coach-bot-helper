@@ -1,8 +1,9 @@
 import fs from "fs";
 
-const adminLogPath = "/data/admin-events.json";
+const adminLogPath = "data/admin-events.json";
 
 function ensureFile() {
+  if (!fs.existsSync("data")) fs.mkdirSync("data", { recursive: true });
   if (!fs.existsSync(adminLogPath)) {
     fs.writeFileSync(adminLogPath, JSON.stringify([]));
   }
