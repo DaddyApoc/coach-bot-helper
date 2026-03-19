@@ -1,6 +1,7 @@
 import { SlashCommandBuilder, PermissionFlagsBits } from "discord.js";
 import { addToWallet } from "../../utils/wallet.js";
 import { logRefund } from "../../utils/admin.js";
+import { flagUser } from "../../utils/admin.js";
 
 export default {
   data: new SlashCommandBuilder()
@@ -24,10 +25,7 @@ export default {
 
     addToWallet(user.id, amount);
     logRefund(user.id, amount, reason);
-    import { flagUser } from "../../utils/admin.js"; // at the top
-
-// FRAUD CHECK: refund abuse
-flagUser(user.id, `Refund issued: $${amount}`, 10);
+    flagUser(user.id, `Refund issued: $${amount}`, 10);
 
     await interaction.reply({
       content: `Refunded **$${amount}** to **${user.username}**.\nReason: ${reason}`,
