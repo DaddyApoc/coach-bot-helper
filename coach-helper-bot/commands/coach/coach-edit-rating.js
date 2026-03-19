@@ -1,63 +1,34 @@
-import {
-  SlashCommandBuilder,
-  EmbedBuilder
-} from "discord.js";
-import fs from "fs";
+const { SlashCommandBuilder } = require("discord.js");
+const fs = require("fs");
 
-const filePath = "data/coaches.json";
-
-function ensureFile() {
-  if (!fs.existsSync("data")) fs.mkdirSync("data", { recursive: true });
-  if (!fs.existsSync(filePath)) {
-    fs.writeFileSync(filePath, JSON.stringify([]));
-  }
-}
-
-export default {
+module.exports = {
   data: new SlashCommandBuilder()
     .setName("coach-edit-rating")
-    .setDescription("Edit a coach's rating.")
-    .addUserOption(option =>
-      option.setName("coach")
-        .setDescription("The coach to edit")
-        .setRequired(true)
-    )
-    .addNumberOption(option =>
+    .setDescription("Set your rating (admin override)")
+    .addIntegerOption(option =>
       option.setName("rating")
-        .setDescription("New rating (1-5)")
+        .setDescription("Rating 1–5")
         .setRequired(true)
-        .setMinValue(1)
-        .setMaxValue(5)
     ),
 
   async execute(interaction) {
     try {
-      ensureFile();
-      const coachUser = interaction.options.getUser("coach");
-      const newRating = interaction.options.getNumber("rating");
+      const rating = interaction.options.getInteger("rating");
+      if (rating < 1 || rating > 5)
+        return interaction.reply("❌ Rating must be between 1 and 5.");
 
-      const coaches = JSON.parse(fs.readFileSync(filePath, "utf8"));
-      const coach = coaches.find(c => c.id === coachUser.id);
+      const coaches = JSON.parse(fs.readFileSync("data/coaches.json", "utf8"));
 
-      if (!coach) {
-        return interaction.reply({
-          content: "❌ That coach is not registered.",
-          ephemeral: true,
-        });
-      }
+      const coach = coaches.find(c => c.id === interaction.user.id);
+      if (!coach) return interaction.reply("❌ You are not registered as a coach.");
 
-      coach.rating = newRating;
-      fs.writeFileSync(filePath, JSON.stringify(coaches, null, 2));
+      coach.rating = rating;
 
-      const embed = new EmbedBuilder()
-        .setTitle("Coach Rating Updated")
-        .setDescription(`Rating updated for **${coachUser.username}**`)
-        .addFields({ name: "New Rating", value: `${newRating} ⭐` })
-        .setColor("Aqua");
+      fs.writeFileSync("data/coaches.json", JSON.stringify(coaches, null, 2));
 
-      return interaction.reply({ embeds: [embed] });
-    } catch (error) {
-      console.error(error);
+      await interaction.reply(`⭐ Rating updated to **${rating}**.`);
+    } catch (err) {
+      console.error(err);
       await interaction.reply("❌ Error updating rating.");
     }
   }
