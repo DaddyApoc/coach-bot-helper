@@ -1,70 +1,58 @@
 import fs from "fs";
-import path from "path";
 
-const filePath = path.join(process.cwd(), "data", "admin.json");
+const logsPath = "/data/admin-logs.json";
 
-function loadAdmin() {
-  if (!fs.existsSync(filePath)) return { refunds: [], adjustments: [], transactions: [] };
-  return JSON.parse(fs.readFileSync(filePath, "utf8"));
-}
-
-function saveAdmin(data) {
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-}
-
-export function logRefund(userId, amount, reason) {
-  const admin = loadAdmin();
-
-  admin.refunds.push({
-    userId,
-    amount,
-    reason,
-    date: Date.now(),
-  });
-
-  saveAdmin(admin);
-}
-
-export function logAdjustment(userId, amount, reason) {
-  const admin = loadAdmin();
-
-  admin.adjustments.push({
-    userId,
-    amount,
-    reason,
-    date: Date.now(),
-  });
-
-  saveAdmin(admin);
-}
-
-export function logTransaction(type, data) {
-  const admin = loadAdmin();
-
-  admin.transactions.push({
-    type,
-    data,
-    date: Date.now(),
-  });
-
-  saveAdmin(admin);
-}
-
-export function flagUser(userId, reason, scoreDelta = 10) {
-  const admin = loadAdmin();
-
-  if (!admin.fraudFlags[userId]) {
-    admin.fraudFlags[userId] = {
-      score: 0,
-      reasons: [],
-    };
+function ensureFile() {
+  if (!fs.existsSync(logsPath)) {
+    fs.writeFileSync(logsPath, JSON.stringify([]));
   }
+}
 
-  admin.fraudFlags[userId].score += scoreDelta;
-  admin.fraudFlags[userId].reasons.push({
+export function logAdjustment(coachId, amount, reason) {
+  ensureFile();
+  const logs = JSON.parse(fs.readFileSync(logsPath, "utf8"));
+  
+  logs.push({
+    coachId,
+    amount,
     reason,
-    date: Date.now(),
+    type: "earnings_adjustment",
+    timestamp: new Date().toISOString()
   });
+  
+  fs.writeFileSync(logsPath, JSON.stringify(logs, null, 2));
+}
 
-  saveAdmin(admin);
+export function logStrike(coachId, reason) {
+  ensureFile();
+  const logs = JSON.parse(fs.readFileSync(logsPath, "utf8"));
+  
+  logs.push({
+    coachId,
+    reason,
+    type: "strike",
+    timestamp: new Date().toISOString()
+  });
+  
+  fs.writeFileSync(logsPath, JSON.stringify(logs, null, 2));
+}
+
+export function logSuspension(coachId, reason) {
+  ensureFile();
+  const logs = JSON.parse(fs.readFileSync(logsPath, "utf8"));
+  
+  logs.push({
+    coachId,
+    reason,
+    type: "suspension",
+    timestamp: new Date().toISOString()
+  });
+  
+  fs.writeFileSync(logsPath, JSON.stringify(logs, null, 2));
+}
+
+export function getAdminLogs(coachId) {
+  ensureFile();
+  const logs = JSON.parse(fs.readFileSync(logsPath, "utf8"));
+  return coachId ? logs.filter(l => l.coachId === coachId) : logs;
 }
