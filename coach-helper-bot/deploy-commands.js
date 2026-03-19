@@ -1,66 +1,45 @@
-import "dotenv/config";
-import { REST, Routes } from "discord.js";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
+const { REST, Routes } = require("discord.js");
+const fs = require("fs");
+const path = require("path");
+require("dotenv").config();
 
-// Mark deploy start
-console.log("=== DEPLOY START ===");
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const clientId = process.env.CLIENT_ID;
+const guildId = process.env.GUILD_ID;
+const token = process.env.TOKEN;
 
 const commands = [];
 const foldersPath = path.join(__dirname, "commands");
-
-// Read all folders inside /commands
 const commandFolders = fs.readdirSync(foldersPath);
 
 for (const folder of commandFolders) {
-  const commandsPath = path.join(foldersPath, folder);
-  const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith(".js"));
+    const commandsPath = path.join(foldersPath, folder);
+    const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith(".js"));
 
-  for (const file of commandFiles) {
-    const filePath = path.join(commandsPath, file);
+    for (const file of commandFiles) {
+        const filePath = path.join(commandsPath, file);
+        const command = require(filePath);
 
-    try {
-      const command = (await import(`file://${filePath}`)).default;
-
-      if (command?.data) {
-        const json = command.data.toJSON();
-
-        // ⭐ LOG COMMAND INDEX + NAME
-        console.log(`[${commands.length}] Loaded command: ${json.name}`);
-
-        commands.push(json);
-      } else {
-        console.log(`⚠️ Skipped (no data): ${file}`);
-      }
-    } catch (err) {
-      console.log(`❌ Failed to load command file: ${file}`);
-      console.error(err);
+        if ("data" in command && "execute" in command) {
+            commands.push(command.data.toJSON());
+        } else {
+            console.log(`[WARNING] The command at ${filePath} is missing "data" or "execute".`);
+        }
     }
-  }
 }
 
-const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);
+const rest = new REST().setToken(token);
 
 (async () => {
-  try {
-    console.log("🔁 Refreshing guild (/) commands...");
+    try {
+        console.log(`Refreshing ${commands.length} guild commands...`);
 
-    await rest.put(
-      Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
-      { body: commands }
-    );
+        await rest.put(
+            Routes.applicationGuildCommands(clientId, guildId),
+            { body: commands }
+        );
 
-    console.log("✅ Successfully reloaded guild (/) commands.");
-  } catch (error) {
-    console.error("❌ Error updating commands:");
-    console.error(error);
-  }
-
-  // Mark deploy end and force Railway to stop here
-  console.log("=== DEPLOY END ===");
-  process.exit(0);
+        console.log("Guild commands updated successfully.");
+    } catch (error) {
+        console.error(error);
+    }
 })();
