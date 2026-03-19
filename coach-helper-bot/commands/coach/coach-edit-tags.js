@@ -1,7 +1,7 @@
 const { SlashCommandBuilder } = require("discord.js");
 const fs = require("fs");
 
-module.exports = {
+module.exports = { 
   data: new SlashCommandBuilder()
     .setName("coach-edit-tags")
     .setDescription("Update your coaching tags")
