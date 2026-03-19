@@ -4,11 +4,12 @@ import {
 } from "discord.js";
 import fs from "fs";
 
-const filePath = "/data/coaches.json";
+const filePath = "data/coaches.json";
 
 function ensureFile() {
+  if (!fs.existsSync("data")) fs.mkdirSync("data", { recursive: true });
   if (!fs.existsSync(filePath)) {
-    fs.writeFileSync(filePath, JSON.stringify({}));
+    fs.writeFileSync(filePath, JSON.stringify([]));
   }
 }
 
@@ -22,18 +23,8 @@ export default {
         .setRequired(true)
     )
     .addNumberOption(option =>
-      option.setName("price-one-session")
-        .setDescription("Price for 1 session")
-        .setRequired(true)
-    )
-    .addNumberOption(option =>
-      option.setName("price-three-sessions")
-        .setDescription("Price for 3 sessions")
-        .setRequired(true)
-    )
-    .addNumberOption(option =>
-      option.setName("price-five-sessions")
-        .setDescription("Price for 5 sessions")
+      option.setName("price")
+        .setDescription("Price per session in USD")
         .setRequired(true)
     ),
 
@@ -41,34 +32,25 @@ export default {
     try {
       ensureFile();
       const coachUser = interaction.options.getUser("coach");
-      const priceOne = interaction.options.getNumber("price-one-session");
-      const priceThree = interaction.options.getNumber("price-three-sessions");
-      const priceFive = interaction.options.getNumber("price-five-sessions");
+      const price = interaction.options.getNumber("price");
 
-      const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
+      const coaches = JSON.parse(fs.readFileSync(filePath, "utf8"));
+      const coach = coaches.find(c => c.id === coachUser.id);
 
-      if (!data[coachUser.id]) {
+      if (!coach) {
         return interaction.reply({
           content: "❌ That coach is not registered.",
           ephemeral: true,
         });
       }
 
-      data[coachUser.id].pricing = {
-        oneSession: priceOne,
-        threeSessions: priceThree,
-        fiveSessions: priceFive
-      };
-      fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+      coach.price = price;
+      fs.writeFileSync(filePath, JSON.stringify(coaches, null, 2));
 
       const embed = new EmbedBuilder()
         .setTitle("Coach Pricing Updated")
         .setDescription(`Pricing updated for **${coachUser.username}**`)
-        .addFields(
-          { name: "1 Session", value: `$${priceOne}`, inline: true },
-          { name: "3 Sessions", value: `$${priceThree}`, inline: true },
-          { name: "5 Sessions", value: `$${priceFive}`, inline: true }
-        )
+        .addFields({ name: "Price per Session", value: `$${price}` })
         .setColor("Aqua");
 
       return interaction.reply({ embeds: [embed] });
