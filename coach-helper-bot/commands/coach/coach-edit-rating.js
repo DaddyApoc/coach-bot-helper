@@ -4,11 +4,12 @@ import {
 } from "discord.js";
 import fs from "fs";
 
-const filePath = "/data/coaches.json";
+const filePath = "data/coaches.json";
 
 function ensureFile() {
+  if (!fs.existsSync("data")) fs.mkdirSync("data", { recursive: true });
   if (!fs.existsSync(filePath)) {
-    fs.writeFileSync(filePath, JSON.stringify({}));
+    fs.writeFileSync(filePath, JSON.stringify([]));
   }
 }
 
@@ -35,17 +36,18 @@ export default {
       const coachUser = interaction.options.getUser("coach");
       const newRating = interaction.options.getNumber("rating");
 
-      const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
+      const coaches = JSON.parse(fs.readFileSync(filePath, "utf8"));
+      const coach = coaches.find(c => c.id === coachUser.id);
 
-      if (!data[coachUser.id]) {
+      if (!coach) {
         return interaction.reply({
           content: "❌ That coach is not registered.",
           ephemeral: true,
         });
       }
 
-      data[coachUser.id].rating = newRating;
-      fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+      coach.rating = newRating;
+      fs.writeFileSync(filePath, JSON.stringify(coaches, null, 2));
 
       const embed = new EmbedBuilder()
         .setTitle("Coach Rating Updated")
