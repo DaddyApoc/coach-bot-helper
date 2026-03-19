@@ -49,3 +49,22 @@ export function logTransaction(type, data) {
 
   saveAdmin(admin);
 }
+
+export function flagUser(userId, reason, scoreDelta = 10) {
+  const admin = loadAdmin();
+
+  if (!admin.fraudFlags[userId]) {
+    admin.fraudFlags[userId] = {
+      score: 0,
+      reasons: [],
+    };
+  }
+
+  admin.fraudFlags[userId].score += scoreDelta;
+  admin.fraudFlags[userId].reasons.push({
+    reason,
+    date: Date.now(),
+  });
+
+  saveAdmin(admin);
+}
