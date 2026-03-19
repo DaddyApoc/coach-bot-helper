@@ -6,9 +6,33 @@ import fs from "fs";
 
 const filePath = "data/coaches.json";
 
+// ⭐ Bulletproof ensureFile()
 function ensureFile() {
-  if (!fs.existsSync("data")) fs.mkdirSync("data", { recursive: true });
+  // Make sure /data folder exists
+  if (!fs.existsSync("data")) {
+    fs.mkdirSync("data", { recursive: true });
+  }
+
+  // If file doesn't exist, create it with []
   if (!fs.existsSync(filePath)) {
+    fs.writeFileSync(filePath, JSON.stringify([]));
+    return;
+  }
+
+  // Read file content
+  const raw = fs.readFileSync(filePath, "utf8").trim();
+
+  // If file is empty, fix it
+  if (!raw) {
+    fs.writeFileSync(filePath, JSON.stringify([]));
+    return;
+  }
+
+  // If file is corrupted, fix it
+  try {
+    JSON.parse(raw); // test parse
+  } catch {
+    console.log("⚠️ coaches.json was corrupted — resetting it.");
     fs.writeFileSync(filePath, JSON.stringify([]));
   }
 }
@@ -31,6 +55,7 @@ export default {
   async execute(interaction) {
     try {
       ensureFile();
+
       const coachUser = interaction.options.getUser("coach");
       const weaponsInput = interaction.options.getString("weapons");
       const weapons = weaponsInput.split(",").map(w => w.trim());
