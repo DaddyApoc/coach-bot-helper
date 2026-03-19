@@ -1,65 +1,41 @@
-import {
-  SlashCommandBuilder,
-  EmbedBuilder
-} from "discord.js";
-import fs from "fs";
+const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
+const fs = require("fs");
 
-const filePath = "/data/coaches.json";
-
-function ensureFile() {
-  if (!fs.existsSync(filePath)) {
-    fs.writeFileSync(filePath, JSON.stringify({}));
-  }
-}
-
-export default {
+module.exports = {
   data: new SlashCommandBuilder()
     .setName("coach-info")
-    .setDescription("View a coach's full profile.")
+    .setDescription("View information about a coach")
     .addUserOption(option =>
       option.setName("coach")
-        .setDescription("The coach to view")
+        .setDescription("Coach to view")
         .setRequired(true)
     ),
 
   async execute(interaction) {
     try {
-      ensureFile();
       const coachUser = interaction.options.getUser("coach");
+      const coaches = JSON.parse(fs.readFileSync("data/coaches.json", "utf8"));
 
-      const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
-      const coach = data[coachUser.id];
-
-      if (!coach) {
-        return interaction.reply({
-          content: "❌ That coach is not registered.",
-          ephemeral: true,
-        });
-      }
-
-      const pricingText = coach.pricing
-        ? `1 Session: $${coach.pricing.oneSession}\n3 Sessions: $${coach.pricing.threeSessions}\n5 Sessions: $${coach.pricing.fiveSessions}`
-        : "Not set";
+      const coach = coaches.find(c => c.id === coachUser.id);
+      if (!coach) return interaction.reply("❌ Coach not found.");
 
       const embed = new EmbedBuilder()
-        .setTitle(`${coachUser.username}'s Coaching Profile`)
-        .setThumbnail(coachUser.displayAvatarURL())
-        .setColor("White")
+        .setTitle(`👤 Coach Profile — ${coachUser.username}`)
         .addFields(
-          { name: "Bio", value: coach.bio || "No bio set." },
-          { name: "Rank", value: coach.rank || "Not set", inline: true },
-          { name: "Rating", value: coach.rating ? `${coach.rating} ⭐` : "No rating", inline: true },
-          { name: "Pricing", value: pricingText },
-          { name: "Weapons", value: coach.weapons?.length ? coach.weapons.join(", ") : "None listed" },
-          { name: "Availability", value: coach.availability || "Not set", inline: true },
-          { name: "Schedule", value: coach.schedule || "Not set", inline: true },
-          { name: "Tags", value: coach.tags?.length ? coach.tags.join(", ") : "No tags" }
-        );
+          { name: "Bio", value: coach.bio || "None" },
+          { name: "Rank", value: coach.rank || "Unranked", inline: true },
+          { name: "Price", value: `${coach.price || 0} credits`, inline: true },
+          { name: "Rating", value: `${coach.rating || "N/A"}`, inline: true },
+          { name: "Availability", value: coach.availability || "Not set" },
+          { name: "Tags", value: coach.tags?.join(", ") || "None" },
+          { name: "Weapons", value: coach.weapons?.join(", ") || "None" }
+        )
+        .setColor("Blue");
 
-      return interaction.reply({ embeds: [embed] });
-    } catch (error) {
-      console.error(error);
-      await interaction.reply("❌ Error retrieving coach info.");
+      await interaction.reply({ embeds: [embed] });
+    } catch (err) {
+      console.error(err);
+      await interaction.reply("❌ Error loading coach info.");
     }
   }
 };
