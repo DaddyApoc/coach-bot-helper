@@ -1,71 +1,73 @@
 import fs from "fs";
-import path from "path";
 
-const filePath = path.join(process.cwd(), "data", "earnings.json");
+const earningsPath = "/data/earnings.json";
+const transactionsPath = "/data/transactions.json";
 
-function loadEarnings() {
-  if (!fs.existsSync(filePath)) return {};
-  return JSON.parse(fs.readFileSync(filePath, "utf8"));
-}
-
-function saveEarnings(data) {
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+function ensureFiles() {
+  if (!fs.existsSync(earningsPath)) {
+    fs.writeFileSync(earningsPath, JSON.stringify({}));
+  }
+  if (!fs.existsSync(transactionsPath)) {
+    fs.writeFileSync(transactionsPath, JSON.stringify([]));
+  }
 }
 
 export function getEarnings(coachId) {
-  const earnings = loadEarnings();
-
-  if (!earnings[coachId]) {
-    earnings[coachId] = {
-      totalEarned: 0,
-      pendingPayout: 0,
-      history: [],
-    };
-    saveEarnings(earnings);
-  }
-
-  return earnings[coachId];
+  ensureFiles();
+  const data = JSON.parse(fs.readFileSync(earningsPath, "utf8"));
+  return data[coachId]?.pending || 0;
 }
 
-export function addEarnings(coachId, amount, sessionId) {
-  const earnings = loadEarnings();
-
-  if (!earnings[coachId]) {
-    earnings[coachId] = {
-      totalEarned: 0,
-      pendingPayout: 0,
-      history: [],
-    };
+export function addEarnings(coachId, amount, type) {
+  ensureFiles();
+  const data = JSON.parse(fs.readFileSync(earningsPath, "utf8"));
+  
+  if (!data[coachId]) {
+    data[coachId] = { pending: 0, total: 0 };
   }
-
-  earnings[coachId].totalEarned += amount;
-  earnings[coachId].pendingPayout += amount;
-
-  earnings[coachId].history.push({
-    type: "session_completed",
+  
+  data[coachId].pending += amount;
+  data[coachId].total += amount;
+  
+  fs.writeFileSync(earningsPath, JSON.stringify(data, null, 2));
+  
+  // Log transaction
+  const transactions = JSON.parse(fs.readFileSync(transactionsPath, "utf8"));
+  transactions.push({
+    coachId,
     amount,
-    sessionId,
-    date: Date.now(),
+    type,
+    timestamp: new Date().toISOString()
   });
-
-  saveEarnings(earnings);
+  fs.writeFileSync(transactionsPath, JSON.stringify(transactions, null, 2));
 }
 
 export function payoutCoach(coachId, amount) {
-  const earnings = loadEarnings();
-
-  if (!earnings[coachId] || earnings[coachId].pendingPayout < amount) {
+  ensureFiles();
+  const data = JSON.parse(fs.readFileSync(earningsPath, "utf8"));
+  
+  if (!data[coachId] || data[coachId].pending < amount) {
     return false;
   }
-
-  earnings[coachId].pendingPayout -= amount;
-
-  earnings[coachId].history.push({
+  
+  data[coachId].pending -= amount;
+  fs.writeFileSync(earningsPath, JSON.stringify(data, null, 2));
+  
+  // Log transaction
+  const transactions = JSON.parse(fs.readFileSync(transactionsPath, "utf8"));
+  transactions.push({
+    coachId,
+    amount: -amount,
     type: "payout",
-    amount,
-    date: Date.now(),
+    timestamp: new Date().toISOString()
   });
-
-  saveEarnings(earnings);
+  fs.writeFileSync(transactionsPath, JSON.stringify(transactions, null, 2));
+  
   return true;
+}
+
+export function getTransactions(coachId) {
+  ensureFiles();
+  const transactions = JSON.parse(fs.readFileSync(transactionsPath, "utf8"));
+  return coachId ? transactions.filter(t => t.coachId === coachId) : transactions;
 }
