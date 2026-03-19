@@ -1,48 +1,40 @@
-import { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } from "discord.js";
-import fs from "fs";
+const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
+const fs = require("fs");
 
-const strikesPath = "data/strikes.json";
-
-export default {
+module.exports = {
   data: new SlashCommandBuilder()
     .setName("admin-strikes")
-    .setDescription("View all strikes for a coach.")
+    .setDescription("View all strikes for a coach")
     .addUserOption(option =>
       option.setName("coach")
         .setDescription("Coach to view")
         .setRequired(true)
-    )
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    ),
 
   async execute(interaction) {
-    const coachUser = interaction.options.getUser("coach");
+    try {
+      const coach = interaction.options.getUser("coach");
+      const strikes = JSON.parse(fs.readFileSync("data/strikes.json", "utf8"))
+        .filter(s => s.coachId === coach.id);
 
-    if (!fs.existsSync(strikesPath)) {
-      return interaction.reply({ content: "❌ No strikes recorded.", ephemeral: true });
-    }
+      if (strikes.length === 0)
+        return interaction.reply(`✅ **${coach.username}** has no strikes.`);
 
-    const strikes = JSON.parse(fs.readFileSync(strikesPath, "utf8"))
-      .filter(s => s.coachId === coachUser.id);
+      const embed = new EmbedBuilder()
+        .setTitle(`⚠️ Strikes for ${coach.username}`)
+        .setColor("Red");
 
-    if (strikes.length === 0) {
-      return interaction.reply({
-        content: `${coachUser} has no strikes.`,
-        ephemeral: true
+      strikes.forEach((s, i) => {
+        embed.addFields({
+          name: `Strike ${i + 1}`,
+          value: `**Reason:** ${s.reason}\n**Date:** ${s.date}`
+        });
       });
+
+      await interaction.reply({ embeds: [embed] });
+    } catch (err) {
+      console.error(err);
+      await interaction.reply("❌ Error loading strikes.");
     }
-
-    const embed = new EmbedBuilder()
-      .setTitle(`⚠️ Strikes for ${coachUser.username}`)
-      .setColor("Orange")
-      .setTimestamp();
-
-    strikes.forEach((s, i) => {
-      embed.addFields({
-        name: `Strike #${i + 1}`,
-        value: `**Reason:** ${s.reason}\n**Issued by:** <@${s.issuedBy}>\n**Date:** ${new Date(s.timestamp).toLocaleString()}`
-      });
-    });
-
-    return interaction.reply({ embeds: [embed], ephemeral: true });
   }
 };
