@@ -4,16 +4,13 @@ import {
 } from "discord.js";
 import fs from "fs";
 
-const bookingsPath = "/data/bookings.json";
-const coachesPath = "/data/coaches.json";
+const bookingsPath = "data/bookings.json";
+const coachesPath = "data/coaches.json";
 
 function ensureFiles() {
-  if (!fs.existsSync(coachesPath)) {
-    fs.writeFileSync(coachesPath, JSON.stringify({}));
-  }
-  if (!fs.existsSync(bookingsPath)) {
-    fs.writeFileSync(bookingsPath, JSON.stringify([]));
-  }
+  if (!fs.existsSync("data")) fs.mkdirSync("data", { recursive: true });
+  if (!fs.existsSync(coachesPath)) fs.writeFileSync(coachesPath, JSON.stringify({}));
+  if (!fs.existsSync(bookingsPath)) fs.writeFileSync(bookingsPath, JSON.stringify([]));
 }
 
 export default {
@@ -71,7 +68,7 @@ export default {
     )
     .addStringOption(option =>
       option.setName("timezone")
-        .setDescription("Your timezone (e.g. America/New_York, Europe/London, Asia/Tokyo)")
+        .setDescription("Your timezone (e.g. America/New_York)")
         .setRequired(true)
     )
     .addStringOption(option =>
@@ -83,8 +80,10 @@ export default {
   async execute(interaction) {
     try {
       ensureFiles();
+
       const coachUser = interaction.options.getUser("coach");
       const studentUser = interaction.user;
+
       const day = interaction.options.getInteger("day");
       const month = interaction.options.getInteger("month");
       const year = interaction.options.getInteger("year");
@@ -94,20 +93,32 @@ export default {
       const timezone = interaction.options.getString("timezone");
       const notes = interaction.options.getString("notes") || "None";
 
-      // Convert 12-hour to 24-hour format
-      if (period === "PM" && hour !== 12) {
-        hour += 12;
-      } else if (period === "AM" && hour === 12) {
-        hour = 0;
+      // Load coach data
+      const coaches = JSON.parse(fs.readFileSync(coachesPath, "utf8"));
+
+      if (!coaches[coachUser.id]) {
+        return interaction.reply({
+          content: "❌ That coach is not registered.",
+          ephemeral: true
+        });
       }
 
-      // Create date string in UTC first
+      if (coaches[coachUser.id].suspended) {
+        return interaction.reply({
+          content: "⛔ This coach is suspended and cannot be booked.",
+          ephemeral: true
+        });
+      }
+
+      // Convert 12h → 24h
+      if (period === "PM" && hour !== 12) hour += 12;
+      if (period === "AM" && hour === 12) hour = 0;
+
       const dateString = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00`;
-      
-      // Try to create date with timezone
+
+      // Convert to timezone-corrected Date
       let sessionTime;
       try {
-        // Use Intl to get timezone offset
         const formatter = new Intl.DateTimeFormat("en-US", {
           timeZone: timezone,
           year: "numeric",
@@ -119,10 +130,10 @@ export default {
           hour12: false
         });
 
-        // Create a test date to get the offset
         const testDate = new Date(dateString);
         const parts = formatter.formatToParts(testDate);
-        const tzDate = new Date(
+
+        sessionTime = new Date(
           parseInt(parts.find(p => p.type === "year").value),
           parseInt(parts.find(p => p.type === "month").value) - 1,
           parseInt(parts.find(p => p.type === "day").value),
@@ -130,24 +141,20 @@ export default {
           parseInt(parts.find(p => p.type === "minute").value),
           parseInt(parts.find(p => p.type === "second").value)
         );
-
-        sessionTime = tzDate;
-      } catch (err) {
+      } catch {
         return interaction.reply({
-          content: `❌ Invalid timezone. Use format like: America/New_York, Europe/London, Asia/Tokyo`,
+          content: "❌ Invalid timezone. Use formats like America/New_York.",
           ephemeral: true
         });
       }
 
-      // Validate date
       if (isNaN(sessionTime.getTime())) {
         return interaction.reply({
-          content: "❌ Invalid date/time. Please check your inputs.",
+          content: "❌ Invalid date/time.",
           ephemeral: true
         });
       }
 
-      // Check if date is in the past
       if (sessionTime < new Date()) {
         return interaction.reply({
           content: "❌ Session time must be in the future.",
@@ -155,17 +162,10 @@ export default {
         });
       }
 
-      const coaches = JSON.parse(fs.readFileSync(coachesPath, "utf8"));
-
-      if (!coaches[coachUser.id]) {
-        return interaction.reply({
-          content: "❌ That coach is not registered.",
-          ephemeral: true
-        });
-      }
-
+      // Load bookings
       let bookings = JSON.parse(fs.readFileSync(bookingsPath, "utf8"));
 
+      // Check for conflicts
       const conflict = bookings.find(b =>
         b.coachId === coachUser.id &&
         b.sessionTime === sessionTime.toISOString() &&
@@ -174,11 +174,12 @@ export default {
 
       if (conflict) {
         return interaction.reply({
-          content: "❌ This coach already has a session booked at that time.",
+          content: "❌ This coach already has a session at that time.",
           ephemeral: true
         });
       }
 
+      // Create booking
       const booking = {
         id: Date.now().toString(),
         coachId: coachUser.id,
@@ -186,8 +187,8 @@ export default {
         studentId: studentUser.id,
         studentName: studentUser.username,
         sessionTime: sessionTime.toISOString(),
-        timezone: timezone,
-        displayTime: `${month}/${day}/${year} at ${String(hour % 12 || 12).padStart(2, "0")}:${String(minute).padStart(2, "0")} ${period}`,
+        timezone,
+        displayTime: `${month}/${day}/${year} at ${String((hour % 12) || 12).padStart(2, "0")}:${String(minute).padStart(2, "0")} ${period}`,
         notes,
         status: "pending",
         reminderSent: false,
@@ -197,6 +198,7 @@ export default {
       bookings.push(booking);
       fs.writeFileSync(bookingsPath, JSON.stringify(bookings, null, 2));
 
+      // DM the coach
       try {
         const dmEmbed = new EmbedBuilder()
           .setTitle("📬 New Coaching Session Request")
@@ -213,6 +215,7 @@ export default {
         console.log("DM failed:", err);
       }
 
+      // Reply to student
       const embed = new EmbedBuilder()
         .setTitle("✅ Session Request Sent")
         .setColor("Green")
@@ -224,16 +227,13 @@ export default {
         );
 
       return interaction.reply({ embeds: [embed] });
+
     } catch (error) {
       console.error(error);
-      await interaction.reply("❌ Error booking session.");
+      return interaction.reply({
+        content: "❌ Error booking session.",
+        ephemeral: true
+      });
     }
   }
 };
-
-if (coach.suspended) {
-  return interaction.reply({
-    content: "⛔ This coach is suspended and cannot be booked or viewed.",
-    ephemeral: true
-  });
-}
