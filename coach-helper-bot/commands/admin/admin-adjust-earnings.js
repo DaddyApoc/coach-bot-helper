@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, PermissionFlagsBits } from "discord.js";
-import { getEarnings, addEarnings, payoutCoach } from "../../utils/earnings.js";
+import { getEarnings, addEarnings, deductEarnings } from "../../utils/earnings.js";
 import { logAdjustment } from "../../utils/admin.js";
 
 export default {
@@ -25,7 +25,7 @@ export default {
     if (amount > 0) {
       addEarnings(coach.id, amount, "admin_adjustment");
     } else {
-      const success = payoutCoach(coach.id, Math.abs(amount));
+      const success = deductEarnings(coach.id, Math.abs(amount));
       if (!success) {
         return interaction.reply({
           content: "Coach does not have enough pending payout.",
