@@ -1,60 +1,32 @@
-import { SlashCommandBuilder, PermissionFlagsBits } from "discord.js";
-import fs from "fs";
-import { logAdminEvent } from "../../utils/adminLogger.js";
+const { SlashCommandBuilder } = require("discord.js");
+const fs = require("fs");
 
-const coachesPath = "data/coaches.json";
-const verifiedRoleId = "1483922835901517975";
-
-export default {
+module.exports = {
   data: new SlashCommandBuilder()
     .setName("admin-unsuspend")
-    .setDescription("Reinstate a suspended coach.")
+    .setDescription("Unsuspend a coach")
     .addUserOption(option =>
       option.setName("coach")
-        .setDescription("Coach to reinstate")
+        .setDescription("Coach to unsuspend")
         .setRequired(true)
-    )
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    ),
 
   async execute(interaction) {
-    const coachUser = interaction.options.getUser("coach");
-
-    if (!fs.existsSync(coachesPath)) {
-      return interaction.reply({ content: "❌ No coaches found.", ephemeral: true });
-    }
-
-    const coaches = JSON.parse(fs.readFileSync(coachesPath, "utf8"));
-    const coach = coaches.find(c => c.id === coachUser.id);
-
-    if (!coach) {
-      return interaction.reply({ content: "❌ That user is not a coach.", ephemeral: true });
-    }
-
-    coach.suspended = false;
-
-    fs.writeFileSync(coachesPath, JSON.stringify(coaches, null, 2));
-
-    // Restore The Generals role
-    const member = await interaction.guild.members.fetch(coachUser.id).catch(() => null);
-    if (member) {
-      await member.roles.add(verifiedRoleId).catch(() => {});
-    }
-
-    // DM coach
     try {
-      await coachUser.send("✅ Your coaching suspension has been lifted. Welcome back.");
-    } catch {}
+      const coach = interaction.options.getUser("coach");
+      const coaches = JSON.parse(fs.readFileSync("data/coaches.json", "utf8"));
 
-    // Log event
-    logAdminEvent(
-      interaction.client,
-      "✅ Coach Reinstated",
-      `**Coach:** ${coachUser}\n**By:** ${interaction.user}`
-    );
+      const target = coaches.find(c => c.id === coach.id);
+      if (!target) return interaction.reply("❌ Coach not found.");
 
-    return interaction.reply({
-      content: `✅ ${coachUser} has been reinstated.`,
-      ephemeral: true
-    });
+      target.suspended = false;
+
+      fs.writeFileSync("data/coaches.json", JSON.stringify(coaches, null, 2));
+
+      await interaction.reply(`✅ **${coach.username}** has been unsuspended.`);
+    } catch (err) {
+      console.error(err);
+      await interaction.reply("❌ Error unsuspending coach.");
+    }
   }
 };
