@@ -1,45 +1,43 @@
-import {
-  SlashCommandBuilder,
-  EmbedBuilder
-} from "discord.js";
-import fs from "fs";
+const { SlashCommandBuilder } = require("discord.js");
+const fs = require("fs");
 
-const feedbackPath = "/data/feedback.json";
-
-export default {
+module.exports = {
   data: new SlashCommandBuilder()
     .setName("coach-feedback")
-    .setDescription("View all feedback for a coach.")
+    .setDescription("Leave feedback for a coach")
     .addUserOption(option =>
       option.setName("coach")
-        .setDescription("Coach to view feedback for")
+        .setDescription("Coach to review")
+        .setRequired(true)
+    )
+    .addStringOption(option =>
+      option.setName("feedback")
+        .setDescription("Your feedback")
         .setRequired(true)
     ),
 
   async execute(interaction) {
-    const coachUser = interaction.options.getUser("coach");
+    try {
+      const coach = interaction.options.getUser("coach");
+      const feedback = interaction.options.getString("feedback");
 
-    let feedback = JSON.parse(fs.readFileSync(feedbackPath, "utf8"));
-    const entries = feedback.filter(f => f.coachId === coachUser.id);
+      const file = "data/feedback.json";
+      if (!fs.existsSync(file)) fs.writeFileSync(file, JSON.stringify([]));
 
-    if (entries.length === 0) {
-      return interaction.reply({
-        content: "📭 This coach has no feedback yet.",
-        ephemeral: true
+      const list = JSON.parse(fs.readFileSync(file, "utf8"));
+      list.push({
+        coachId: coach.id,
+        studentId: interaction.user.id,
+        feedback,
+        date: new Date().toISOString()
       });
+
+      fs.writeFileSync(file, JSON.stringify(list, null, 2));
+
+      await interaction.reply(`📝 Feedback submitted for **${coach.username}**.`);
+    } catch (err) {
+      console.error(err);
+      await interaction.reply("❌ Error submitting feedback.");
     }
-
-    const embed = new EmbedBuilder()
-      .setTitle(`⭐ Feedback for ${coachUser.username}`)
-      .setColor("Yellow");
-
-    entries.slice(0, 10).forEach(f => {
-      embed.addFields({
-        name: `${f.rating}⭐ — ${f.studentName}`,
-        value: `${f.comment}\nTags: ${f.tags.join(", ") || "None"}`
-      });
-    });
-
-    return interaction.reply({ embeds: [embed] });
   }
 };
