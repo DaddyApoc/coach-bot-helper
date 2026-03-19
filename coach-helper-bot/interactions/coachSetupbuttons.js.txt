@@ -1,0 +1,62 @@
+const fs = require("fs");
+const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require("discord.js");
+const generateProfilePreview = require("../utils/coachProfilePreview");
+
+module.exports = async function handleCoachSetupButtons(interaction) {
+  if (!interaction.isButton()) return;
+
+  const id = interaction.customId;
+  const userId = interaction.user.id;
+
+  const file = "data/coaches.json";
+  const coaches = JSON.parse(fs.readFileSync(file, "utf8"));
+  const coach = coaches.find(c => c.id === userId);
+
+  if (!coach) {
+    return interaction.reply({ content: "❌ You are not registered as a coach.", ephemeral: true });
+  }
+
+  // BUTTON → OPEN MODAL
+  const modalMap = {
+    edit_bio: { id: "modal_bio", label: "Edit Bio", field: "bio" },
+    edit_rank: { id: "modal_rank", label: "Edit Rank", field: "rank" },
+    edit_weapons: { id: "modal_weapons", label: "Edit Weapons", field: "weapons" },
+    edit_tags: { id: "modal_tags", label: "Edit Tags", field: "tags" },
+    edit_price: { id: "modal_price", label: "Edit Price", field: "price" },
+    edit_availability: { id: "modal_availability", label: "Edit Availability", field: "availability" },
+    edit_schedule: { id: "modal_schedule", label: "Edit Schedule", field: "schedule" }
+  };
+
+  if (modalMap[id]) {
+    const modalInfo = modalMap[id];
+
+    const modal = new ModalBuilder()
+      .setCustomId(modalInfo.id)
+      .setTitle(modalInfo.label);
+
+    const input = new TextInputBuilder()
+      .setCustomId("value")
+      .setLabel(modalInfo.label)
+      .setStyle(TextInputStyle.Paragraph)
+      .setRequired(true);
+
+    const row = new ActionRowBuilder().addComponents(input);
+    modal.addComponents(row);
+
+    return interaction.showModal(modal);
+  }
+
+  // BUTTON → PREVIEW PROFILE
+  if (id === "preview_profile") {
+    const embed = generateProfilePreview(coach, interaction.user);
+    return interaction.reply({ embeds: [embed], ephemeral: true });
+  }
+
+  // BUTTON → FINISH SETUP
+  if (id === "finish_setup") {
+    return interaction.reply({
+      content: "🎉 Your coach profile setup is complete!",
+      ephemeral: true
+    });
+  }
+};
