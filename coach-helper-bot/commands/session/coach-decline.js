@@ -1,84 +1,37 @@
-import {
-  SlashCommandBuilder,
-  EmbedBuilder
-} from "discord.js";
-import fs from "fs";
+const { SlashCommandBuilder } = require("discord.js");
+const fs = require("fs");
 
-const bookingsPath = "/data/bookings.json";
-
-function ensureFile() {
-  if (!fs.existsSync(bookingsPath)) {
-    fs.writeFileSync(bookingsPath, JSON.stringify([]));
-  }
-}
- 
-export default {
+module.exports = {
   data: new SlashCommandBuilder()
     .setName("coach-decline")
-    .setDescription("Decline a coaching session request.")
-    .addStringOption(option =>
-      option.setName("booking-id")
-        .setDescription("The booking ID to decline")
+    .setDescription("Decline a pending session")
+    .addStringOption(opt =>
+      opt.setName("session_id")
+        .setDescription("The session ID")
         .setRequired(true)
-    )
-    .addStringOption(option =>
-      option.setName("reason")
-        .setDescription("Reason for declining (optional)")
-        .setRequired(false)
     ),
 
   async execute(interaction) {
     try {
-      ensureFile();
-      const bookingId = interaction.options.getString("booking-id");
-      const reason = interaction.options.getString("reason") || "No reason provided";
+      const sessionId = interaction.options.getString("session_id");
+      const sessions = JSON.parse(fs.readFileSync("data/sessions.json", "utf8"));
 
-      let bookings = JSON.parse(fs.readFileSync(bookingsPath, "utf8"));
-      const booking = bookings.find(b => b.id === bookingId);
+      const session = sessions.find(s => s.id === sessionId);
 
-      if (!booking) {
-        return interaction.reply({
-          content: "❌ Booking not found.",
-          ephemeral: true
-        });
-      }
+      if (!session)
+        return interaction.reply("❌ Session not found.");
 
-      if (booking.coachId !== interaction.user.id) {
-        return interaction.reply({
-          content: "❌ You can only decline your own bookings.",
-          ephemeral: true
-        });
-      }
+      if (session.coach !== interaction.user.id)
+        return interaction.reply("❌ You are not the coach for this session.");
 
-      booking.status = "declined";
-      booking.declineReason = reason;
-      fs.writeFileSync(bookingsPath, JSON.stringify(bookings, null, 2));
+      session.status = "declined";
 
-      const embed = new EmbedBuilder()
-        .setTitle("❌ Session Declined")
-        .setColor("Red")
-        .addFields(
-          { name: "Student", value: booking.studentName },
-          { name: "Reason", value: reason }
-        );
+      fs.writeFileSync("data/sessions.json", JSON.stringify(sessions, null, 2));
 
-      await interaction.reply({ embeds: [embed] });
-
-      try {
-        const student = await interaction.client.users.fetch(booking.studentId);
-        const dmEmbed = new EmbedBuilder()
-          .setTitle("❌ Session Declined")
-          .setColor("Red")
-          .setDescription(`**${booking.coachName}** has declined your session request.`)
-          .addFields({ name: "Reason", value: reason });
-
-        await student.send({ embeds: [dmEmbed] });
-      } catch (err) {
-        console.log("DM failed:", err);
-      }
-    } catch (error) {
-      console.error(error);
-      await interaction.reply("❌ Error declining session.");
+      return interaction.reply("❌ Session declined.");
+    } catch (err) {
+      console.error(err);
+      return interaction.reply("❌ Error declining session.");
     }
   }
 };
