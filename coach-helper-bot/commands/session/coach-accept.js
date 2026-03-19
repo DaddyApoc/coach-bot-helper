@@ -1,77 +1,37 @@
-import {
-  SlashCommandBuilder,
-  EmbedBuilder
-} from "discord.js";
-import fs from "fs";
+const { SlashCommandBuilder } = require("discord.js");
+const fs = require("fs");
 
-const bookingsPath = "/data/bookings.json";
-
-function ensureFile() {
-  if (!fs.existsSync(bookingsPath)) {
-    fs.writeFileSync(bookingsPath, JSON.stringify([])); 
-  }
-}
-
-export default {
+module.exports = {
   data: new SlashCommandBuilder()
     .setName("coach-accept")
-    .setDescription("Accept a coaching session request.")
-    .addStringOption(option =>
-      option.setName("booking-id")
-        .setDescription("The booking ID to accept")
+    .setDescription("Accept a pending session")
+    .addStringOption(opt =>
+      opt.setName("session_id")
+        .setDescription("The session ID")
         .setRequired(true)
     ),
 
   async execute(interaction) {
     try {
-      ensureFile();
-      const bookingId = interaction.options.getString("booking-id");
+      const sessionId = interaction.options.getString("session_id");
+      const sessions = JSON.parse(fs.readFileSync("data/sessions.json", "utf8"));
 
-      let bookings = JSON.parse(fs.readFileSync(bookingsPath, "utf8"));
-      const booking = bookings.find(b => b.id === bookingId);
+      const session = sessions.find(s => s.id === sessionId);
 
-      if (!booking) {
-        return interaction.reply({
-          content: "❌ Booking not found.",
-          ephemeral: true
-        });
-      }
+      if (!session)
+        return interaction.reply("❌ Session not found.");
 
-      if (booking.coachId !== interaction.user.id) {
-        return interaction.reply({
-          content: "❌ You can only accept your own bookings.",
-          ephemeral: true
-        });
-      }
+      if (session.coach !== interaction.user.id)
+        return interaction.reply("❌ You are not the coach for this session.");
 
-      booking.status = "accepted";
-      fs.writeFileSync(bookingsPath, JSON.stringify(bookings, null, 2));
+      session.status = "accepted";
 
-      const embed = new EmbedBuilder()
-        .setTitle("✅ Session Accepted")
-        .setColor("Green")
-        .addFields(
-          { name: "Student", value: booking.studentName },
-          { name: "Time", value: booking.time }
-        );
+      fs.writeFileSync("data/sessions.json", JSON.stringify(sessions, null, 2));
 
-      await interaction.reply({ embeds: [embed] });
-
-      try {
-        const student = await interaction.client.users.fetch(booking.studentId);
-        const dmEmbed = new EmbedBuilder()
-          .setTitle("✅ Session Accepted")
-          .setColor("Green")
-          .setDescription(`**${booking.coachName}** has accepted your session request!`)
-          .addFields({ name: "Time", value: booking.time });
-
-        await student.send({ embeds: [dmEmbed] });
-      } catch (err) {
-        console.log("DM failed:", err);
-      }
-    } catch (error) {
-      console.error(error);
-      await interaction.reply("❌ Error accepting session.");
+      return interaction.reply("✅ Session accepted.");
+    } catch (err) {
+      console.error(err);
+      return interaction.reply("❌ Error accepting session.");
     }
   }
 };
