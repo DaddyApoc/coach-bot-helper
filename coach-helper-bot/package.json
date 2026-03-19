@@ -1,15 +1,9 @@
-{
-  "name": "coach-helper-bot",
-  "version": "1.0.0",
-  "description": "Coach helper.exe Discord bot",
-  "main": "index.js",
-  "type": "module",
-  "scripts": {
-    "start": "node index.js",
-    "deploy": "node deploy-commands.js"
-  },
-  "dependencies": {
-    "discord.js": "^14.16.3",
-    "dotenv": "^16.4.5"
-  }
-}
+(node:109) DeprecationWarning: The ready event has been renamed to clientReady to distinguish it from the gateway READY event and will only emit under that name in v15. Please use clientReady instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Bot logged in as Coach.exe#0351
+Stopping Container
+npm error command failed
+npm error signal SIGTERM
+npm error command sh -c node index.js
+npm error A complete log of this run can be found in: /root/.npm/_logs/2026-03-19T12_24_01_139Z-debug-0.log
+npm error path /app
