@@ -1,79 +1,36 @@
-import {
-  SlashCommandBuilder,
-  EmbedBuilder
-} from "discord.js";
+const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
+const { addToWallet } = require("../../utils/wallet");
 
-import {
-  loadWallets,
-  saveWallets
-} from "../../utils/wallet.js";
-
-export default {
+module.exports = {
   data: new SlashCommandBuilder()
     .setName("wallet-add")
-    .setDescription("Add funds to a user's wallet (admin only).")
+    .setDescription("Add funds to a user's wallet (Admin only)")
     .addUserOption(option =>
       option.setName("user")
-        .setDescription("The user to add funds to")
+        .setDescription("User to add funds to")
         .setRequired(true)
     )
     .addIntegerOption(option =>
       option.setName("amount")
         .setDescription("Amount to add")
         .setRequired(true)
-        .setMinValue(1)
-    ),
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
   async execute(interaction) {
-    // Permission check
-    if (!interaction.memberPermissions.has("Administrator")) {
-      return interaction.reply({
-        content: "❌ Only administrators can add wallet funds.",
-        ephemeral: true
-      });
-    }
+    try {
+      const user = interaction.options.getUser("user");
+      const amount = interaction.options.getInteger("amount");
 
-    const targetUser = interaction.options.getUser("user");
-    const amount = interaction.options.getInteger("amount");
+      const wallet = addToWallet(user.id, amount, "admin");
 
-    // Load wallets
-    const wallets = loadWallets();
-
-    // Ensure wallet exists
-    if (!wallets[targetUser.id]) {
-      wallets[targetUser.id] = {
-        balance: 0,
-        history: []
-      };
-    }
-
-    // Update balance
-    wallets[targetUser.id].balance += amount;
-
-    // Add history entry
-    wallets[targetUser.id].history.push({
-      type: "admin_add",
-      amount,
-      date: new Date().toISOString(),
-      admin: interaction.user.id
-    });
-
-    // Save
-    saveWallets(wallets);
-
-    // Build embed
-    const embed = new EmbedBuilder()
-      .setTitle("💰 Wallet Updated")
-      .setColor("Green")
-      .setDescription(`Successfully added **$${amount}** to **${targetUser.username}**'s wallet.`)
-      .addFields(
-        { name: "New Balance", value: `$${wallets[targetUser.id].balance}` },
-        { name: "Updated By", value: interaction.user.username }
+      await interaction.reply(
+        `💰 Added **${amount} credits** to **${user.username}**.\n` +
+        `New Balance: **${wallet.balance} credits**`
       );
-
-    return interaction.reply({
-      embeds: [embed],
-      ephemeral: true
-    });
+    } catch (err) {
+      console.error(err);
+      await interaction.reply("❌ Error adding funds.");
+    }
   }
 };
