@@ -2,7 +2,7 @@ import {
   SlashCommandBuilder
 } from "discord.js";
 import fs from "fs";
-
+ 
 const progressPath = "/data/studentProgress.json";
 
 export default {
