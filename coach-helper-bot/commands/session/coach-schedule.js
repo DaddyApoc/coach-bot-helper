@@ -1,36 +1,37 @@
-const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
+const { SlashCommandBuilder } = require("discord.js");
 const fs = require("fs");
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName("coach-schedule")
-    .setDescription("View your upcoming coaching sessions"),
+    .setName("complete-session")
+    .setDescription("Mark a session as completed")
+    .addStringOption(opt =>
+      opt.setName("session_id")
+        .setDescription("The session ID")
+        .setRequired(true)
+    ),
 
   async execute(interaction) {
     try {
+      const sessionId = interaction.options.getString("session_id");
       const sessions = JSON.parse(fs.readFileSync("data/sessions.json", "utf8"));
-      const upcoming = sessions.filter(
-        s => s.coach === interaction.user.id && s.status === "accepted"
-      );
 
-      if (!upcoming.length)
-        return interaction.reply("📭 You have no upcoming sessions.");
+      const session = sessions.find(s => s.id === sessionId);
 
-      const embed = new EmbedBuilder()
-        .setTitle("📅 Your Coaching Schedule")
-        .setColor("Blue")
-        .addFields(
-          upcoming.map(s => ({
-            name: `Session ${s.id}`,
-            value: `Student: <@${s.student}>\nTime: ${s.time}`,
-            inline: false
-          }))
-        );
+      if (!session)
+        return interaction.reply("❌ Session not found.");
 
-      return interaction.reply({ embeds: [embed] });
+      if (session.coach !== interaction.user.id)
+        return interaction.reply("❌ You are not the coach for this session.");
+
+      session.status = "completed";
+
+      fs.writeFileSync("data/sessions.json", JSON.stringify(sessions, null, 2));
+
+      return interaction.reply("✅ Session marked as completed.");
     } catch (err) {
       console.error(err);
-      return interaction.reply("❌ Error loading schedule.");
+      return interaction.reply("❌ Error completing session.");
     }
   }
 };
